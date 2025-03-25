@@ -1,53 +1,81 @@
 # Hangman Multijugador
 
 ## Descripción del Proyecto
-Este proyecto consiste en implementar un juego del ahorcado (Hangman) en modo multijugador. El servidor permite la conexión de al menos dos jugadores que se turnan en cada ronda: uno adivina la palabra y el otro la proporciona. Los roles se intercambian en cada ronda, permitiendo la interacción continua entre los jugadores.
+
+Este proyecto consiste en implementar un juego de Ahorcado (Hangman) en modo multijugador. El sistema está diseñado para que dos jugadores se conecten a través de una arquitectura cliente-servidor. En cada ronda, un jugador ingresa la palabra secreta y el otro intenta adivinarla. Los roles se intercambian en cada ronda.
 
 ## Objetivos
-- Desarrollar un juego interactivo de Hangman en el que dos jugadores puedan competir.
-- Implementar una comunicación cliente-servidor para gestionar las rondas y el intercambio de información.
-- Permitir la conexión simultánea de múltiples jugadores, con roles cambiantes en cada ronda.
+
+- Permitir la conexión de al menos dos jugadores a través de sockets.
+- Gestionar la interacción por rondas: 
+  - **Cliente 1:** Ingresará la palabra secreta, por ejemplo, "Aguacate".
+  - **Cliente 2:** Recibirá la palabra oculta (por ejemplo, "________") y podrá intentar adivinar letras o la palabra completa.
+  - A medida que se van adivinando letras, se actualiza en tiempo real el progreso de la palabra oculta.
+- Implementar el intercambio de mensajes en formato JSON (o bien, cada mensaje en una línea) para que ambos clientes actualicen la partida.
 
 ## Lenguajes de Programación y Tecnologías
+
 - **Servidor:**  
-  - Lenguaje: (Por definir, se contempla usar Java o C)
-  - Sistema operativo: Linux (ejecutándose en contenedores Docker o en un servidor Linux)
+  - Lenguaje: C (usando el código proporcionado por el profesor)  
+  - Sistema Operativo: Linux  
+  - Ejecución: En contenedores Docker (o en una máquina Linux)
+
 - **Cliente:**  
-  - Lenguaje: C
-  - Sistema operativo: Windows (compilado con VS Code/MinGW o similar)
-
-## Estructura del Proyecto
-El repositorio contiene las siguientes carpetas:
-
-- **/cliente:**  
-  Contiene el código fuente del cliente en C.
-- **/servidor:**  
-  Contiene el código fuente del servidor (proporcionado por el profesor y adaptado, o implementado en Java/C según se defina).
-- **/docs:**  
-  Documentación y entregables (incluye este PDF de evidencias).
-
-## Cómo Ejecutar el Proyecto
-1. **Servidor:**  
-   - Clonar el repositorio y compilar el código del servidor (en Linux).  
-   - Ejecutar el servidor en el puerto 5000 (o el puerto definido).
-2. **Cliente:**  
-   - En Windows, compilar el código del cliente en C.
-   - Ejecutar el cliente usando:
-     ```
-     cliente.exe <archivo.txt> <ip_del_servidor> 5000
-     ```
-   - Ejemplo:  
-     ```
-     cliente.exe palabras.txt 192.168.1.100 5000
-     ```
+  - Lenguaje: C  
+  - Sistema Operativo: Windows  
+  - Ejecución: Con Visual Studio Code (o similar) usando MinGW o compilado con Visual Studio (si se ajusta a las indicaciones del profesor)
 
 ## Requisitos Adicionales
-- El cliente lee el nombre del archivo y su contenido, enviándolo al servidor.
-- El servidor recibe el nombre y el contenido, y crea un archivo local con el mismo nombre y contenido.
-- La comunicación se realiza mediante sockets TCP (o UDP, según lo requiera la actividad).
+
+- **Comunicación:**  
+  El cliente se ejecuta con:
+  <cliente ejecutable> <ip> <puerto>
+
+Donde el puerto se fija en 5000. Al conectarse, el sistema solicitará a uno de los clientes que ingrese la palabra a proporcionar (por ejemplo, "Aguacate"). Esa palabra se transformará en un mensaje (por ejemplo, en formato JSON o una cadena con un separador) y se enviará para que el otro cliente la reciba de forma oculta (mostrándose con guiones bajos, como "________").  
+Luego, ambos clientes verán el progreso en cada intento, por ejemplo:  
+- Cliente 1 – Palabra a dar: "Aguacate"  
+- Cliente 2 – Palabra a adivinar: "________"  
+- Cliente 2 ingresa: "a"  
+- Ambos ven: "A__a_a__"  
+y así sucesivamente.
+
+- **Evidencia de la Comunicación:**  
+La comunicación se realiza mediante sockets TCP (en el servidor se usa el código del profesor, que ya soporta interacción continua) y el cliente implementa la parte interactiva. Los mensajes se pueden estructurar en JSON o en un formato de texto simple con delimitadores (por ejemplo, cada mensaje en una línea), siempre que ambos extremos interpreten correctamente los datos.
+
+## Estructura del Proyecto
+
+El repositorio se organiza de la siguiente manera:
+
+- `/cliente`:  
+Contiene el código fuente del cliente en C (ej. `tcpcliente.c` o `udpcliente.c` según el protocolo).
+
+- `/servidor`:  
+Contiene el código fuente del servidor en C (ej. `tcpserver.c` o `udpserver.c` según el protocolo).
+
+- `/docs`:  
+Contiene la documentación adicional, incluyendo este README, el PDF de entrega y capturas de pantalla.
+
+## Cómo Ejecutar el Proyecto
+
+1. **Servidor:**  
+ - En Linux (por ejemplo, en Docker), compila y ejecuta el servidor usando el código proporcionado por el profesor.  
+ - Ejemplo de ejecución:  
+   ```bash
+   ./tcpserver 5000
+   ```
+   (El servidor escucha en el puerto 5000).
+
+2. **Cliente:**  
+ - En Windows, compila el cliente (en C) usando Visual Studio Code/MinGW o Visual Studio.  
+ - Ejemplo de ejecución:  
+   ```bash
+   cliente.exe 172.18.2.2 5000
+   ```
+   O, si se usa la IP del host (por ejemplo, 192.168.1.X), se ingresa esa IP.  
+ - Una vez conectado, el cliente solicitará ingresar la palabra secreta y continuará con la interacción del juego.
 
 ## Colaboradores
-- Nombre 1 (GitHub: @nickname1)
-- Nombre 2 (GitHub: @nickname2)
-- Nombre 3 (GitHub: @nickname3)
 
+- **Nombre 1** (GitHub: @nickname1)  
+- **Nombre 2** (GitHub: @nickname2)  
+- **Nombre 3** (GitHub: @nickname3)
