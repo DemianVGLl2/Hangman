@@ -76,6 +76,6 @@ Contiene la documentación adicional, incluyendo este README, el PDF de entrega 
 
 ## Colaboradores
 
-- **Nombre 1** (GitHub: @nickname1)  
+- **Demián Velasco Gómez Llanos** (GitHub: @DemianVGLl2)  
 - **Nombre 2** (GitHub: @nickname2)  
 - **Nombre 3** (GitHub: @nickname3)
