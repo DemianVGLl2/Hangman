@@ -16,7 +16,7 @@ Este proyecto consiste en implementar un juego de Ahorcado (Hangman) en modo mul
 ## Lenguajes de Programación y Tecnologías
 
 - **Servidor:**  
-  - Lenguaje: C (usando el código proporcionado por el profesor, adaptado para el juego)  
+  - Lenguaje: C (usando el código proporcionado por el profesor como base adaptádondolo para el juego)  
   - Sistema Operativo: Linux  
   - Ejecución: En contenedores Docker (o en una máquina Linux, utilizando WSL o Docker)
 
