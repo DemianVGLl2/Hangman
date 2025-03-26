@@ -81,5 +81,5 @@ Contiene la documentación adicional, incluyendo este README, el PDF de entrega 
 ## Colaboradores
 
 - **Demián Velasco Gómez Llanos** (GitHub: @DemianVGLl2)  
-- **Nombre 2** (GitHub: @nickname2)  
-- **Nombre 3** (GitHub: @nickname3)
+- **Santiago Arreola Munguia** (GitHub: @sarreolam)  
+- **Marco Antonio Manjarrez Fernandez** (GitHub: @MarcoManjarrez)
