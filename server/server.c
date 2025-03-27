@@ -59,7 +59,6 @@ void aborta_handler(int sig){
   exit(1);
 }
 
-
 void setWord(){
 
 }
@@ -67,7 +66,7 @@ void guesseLetter(){
 
 }
 
-int main(){
+int main() {
   int sd, sd_actual;
   int addrlen;
   struct sockaddr_in sind, pin;
@@ -98,7 +97,7 @@ int main(){
     exit(1);
   }
 
-  printf("Servidor iniciado en el puerto %d. Esperando conexiones...\n", port);
+  printf("Servidor iniciado en el puerto %d. Esperando conexiones...\n", PUERTO);
 
   if ((sd_actual = accept(sd, (struct sockaddr *)&pin, &addrlen)) == -1) {
 		perror("accept");
@@ -122,8 +121,9 @@ int main(){
     }
     if (pid == 0) { //Proceso del hijo
       close(sd); //No necesita el socket de escucha
-      strcpy(json, " ");
+      strcpy(action, " ");
       char sigue = 'S';
+      char *display;
     
       while(sigue=='S'){				
         /* tomar un mensaje del cliente */
@@ -137,9 +137,9 @@ int main(){
         
         if((strcmp(msg,"close")==0)){ //it means that the conversation must be closed
           sigue='N';
-          strcpy(json,"close");
+          strcpy(action,"close");
         } else {
-          //convert msg received to json format
+          //convert msg received to action format
           
           char temp[msgSIZE];
           strcpy(temp, msg);
@@ -172,7 +172,6 @@ int main(){
               if (word) {
                 printf("Palabra secreta recibida: %s\n", word);
                 int len = strlen(word);
-                char display[len+1];
                 for (int i=0; i<len; i++) {
                   if (word[i] != ' ') display[i] = '_';
                   else display[i] = ' ';
@@ -190,21 +189,22 @@ int main(){
                 //Caso de éxito
                 snprintf(action, sizeof(action), "4.%s.%d", display, 1);
               }
+              break;
 
             default:
               printf("No se pudo\n");
             
-            }
           }
-          close(sd_actual);
-          printf("Conexión cerrada en proceso hijo (PID %d).\n", (int)getpid());
-          exit(0);
-      } else {
-        // Proceso padre: cierra el descriptor del cliente y sigue aceptando conexiones
-        close(sd_actual);
+        }
       }
+        close(sd_actual);
+        printf("Conexión cerrada en proceso hijo (PID %d).\n", (int)getpid());
+        exit(0);
+    } else {
+      // Proceso padre: cierra el descriptor del cliente y sigue aceptando conexiones
+      close(sd_actual);
     }
-    close(sd);
-    return 0;
   }
+  close(sd);
+  return 0;
 }
