@@ -16,21 +16,21 @@ Este proyecto consiste en implementar un juego de Ahorcado (Hangman) en modo mul
 ## Lenguajes de Programación y Tecnologías
 
 - **Servidor:**  
-  - Lenguaje: C (usando el código proporcionado por el profesor como base adaptádondolo para el juego)  
+  - Lenguaje: C (usando el código proporcionado por el profesor, adaptado para el juego)  
   - Sistema Operativo: Linux  
-  - Ejecución: En contenedores Docker (o en una máquina Linux, utilizando WSL o Docker)
+  - Ejecución: En contenedores Docker (o en una máquina Linux utilizando WSL o Docker)
 
 - **Cliente:**  
-  - Lenguaje: Java (con interfaz gráfica)  
+  - Lenguaje: JavaScript  
   - Sistema Operativo: Windows  
-  - Tecnologías: Java (por ejemplo, utilizando JavaFX o Swing para la interfaz gráfica)
+  - Tecnologías: Aplicación web (por ejemplo, utilizando HTML, CSS y frameworks/librerías como React, Vue.js o simplemente JavaScript puro) para mostrar la interfaz gráfica del juego y gestionar la comunicación.
 
 ## Requisitos Adicionales
 
 - **Comunicación:**  
   El cliente se ejecuta con:
   <cliente ejecutable> <ip> <puerto>
-donde el puerto se fija en 5000. Al conectarse, la interfaz gráfica solicitará a uno de los clientes que ingrese la palabra secreta (por ejemplo, "Aguacate"). Esa palabra se transformará en un mensaje (por ejemplo, en formato JSON o en una cadena con separador) y se enviará para que el otro cliente la reciba de forma oculta (mostrándose como guiones bajos, por ejemplo, "________").  
+donde el puerto se fija en 5000. Al conectarse, la interfaz solicitará a uno de los clientes que ingrese la palabra secreta (por ejemplo, "Aguacate"). Esa palabra se transformará en un mensaje (por ejemplo, en formato JSON o una cadena con delimitador) y se enviará para que el otro cliente la reciba de forma oculta (mostrándose como guiones bajos, por ejemplo, "________").  
 A partir de ahí, ambos clientes verán en tiempo real el progreso del juego.  
 Ejemplo de flujo:
 - Cliente 1 – Palabra a dar: "Aguacate"  
@@ -47,7 +47,7 @@ La comunicación se realiza mediante sockets TCP (el servidor utiliza el código
 El repositorio se organiza de la siguiente manera:
 
 - **/cliente:**  
-Contiene el código fuente del cliente en Java, que incluye la interfaz gráfica y la lógica de comunicación.
+Contiene el código fuente del cliente en JavaScript, que incluye la interfaz gráfica y la lógica de comunicación (por ejemplo, usando WebSockets o TCP mediante Node.js).
 
 - **/servidor:**  
 Contiene el código fuente del servidor en C (basado en el código proporcionado por el profesor, adaptado para el juego).
@@ -58,28 +58,25 @@ Contiene la documentación adicional, incluyendo este README, el PDF de entrega 
 ## Cómo Ejecutar el Proyecto
 
 1. **Servidor:**  
- - En Linux (por ejemplo, en un contenedor Docker o en WSL), compila y ejecuta el servidor usando el código proporcionado por el profesor:
+ - En Linux (por ejemplo, en un contenedor Docker o en WSL), compila y ejecuta el servidor usando el código proporcionado:
    ```bash
    ./tcpserver 5000
    ```
    (El servidor escucha en el puerto 5000).
 
 2. **Cliente:**  
- - En Windows, compila el cliente en Java (por ejemplo, generando un archivo JAR) con tu IDE preferido.
- - Ejecuta el cliente pasando la IP del servidor (la IP del host a la que se ha mapeado el contenedor) y el puerto 5000:
+ - En Windows, implementa el cliente en JavaScript (por ejemplo, como una aplicación web o mediante Node.js).
+ - Si se trata de una aplicación web, abre la página en tu navegador y se solicitarán los parámetros (o se configurarán internamente) para conectarse al servidor, usando la IP del servidor y el puerto 5000.
+ - Alternativamente, si usas Node.js, ejecuta:
    ```bash
-   java -jar cliente.jar <ip_del_servidor> 5000
+   node cliente.js <ip_del_servidor> 5000
    ```
-   Ejemplo:
-   ```bash
-   java -jar cliente.jar 192.168.1.100 5000
-   ```
-   La interfaz gráfica te permitirá:
+ - La interfaz gráfica permitirá:
    - Ingresar la palabra secreta (Cliente 1).
    - Visualizar la palabra oculta y adivinar letras o la palabra completa (Cliente 2).
 
 ## Colaboradores
 
 - **Demián Velasco Gómez Llanos** (GitHub: @DemianVGLl2)  
-- **Santiago Arreola Munguia** (GitHub: @sarreolam)  
-- **Marco Antonio Manjarrez Fernandez** (GitHub: @MarcoManjarrez)
+- **Santiago Arreola Munguía** (GitHub: @sarreolam)  
+- **Marco Antonio Manjarrez Fernández** (GitHub: @MarcoManjarrez)
