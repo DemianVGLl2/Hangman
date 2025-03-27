@@ -31,7 +31,7 @@ int validateUser(const char *username, const char *password){
             break;
         }
     }
-    printf("validado %d\n", found);
+    //printf("Validado %d\n", found);
     fclose(file);
     return found;
 }
@@ -50,9 +50,16 @@ void addUser(const char *username, const char *password){
 
   fprintf(file, "%s\n%s\n", username, password);
   fclose(file);
+  printf("Usuario agregado exitosamente.\n");
 
   // printf("✅ Usuario agregado exitosamente.\n");
 }
+
+void aborta_handler(int sig){
+  printf("....abortando el proceso servidor %d\n",sig);
+  exit(1);
+}
+
 
 void setWord(){
 
@@ -61,21 +68,12 @@ void guesseLetter(){
 
 }
 
-int                  sd, sd_actual; 
-int                  addrlen;    
-struct sockaddr_in   sind, pin;  
-
-
-void aborta_handler(int sig){
-  printf("....abortando el proceso servidor %d\n",sig);
-  close(sd);  
-  close(sd_actual); 
-  exit(1);
-}
-
 int main(){
+  int sd, sd_actual;
+  int addrlen;
+  struct sockaddr_in sind, pin;
   char  msg[msgSIZE];	     /* parametro entrada y salida */
-	char  json[msgSIZE];	 
+	char  action[msgSIZE];
 
   if(signal(SIGINT, aborta_handler) == SIG_ERR){
     perror("Could not set signal handler");
@@ -100,80 +98,114 @@ int main(){
     perror("listen");
     exit(1);
   }
+
+  printf("Servidor iniciado en el puerto %d. Esperando conexiones...\n", port);
+
   if ((sd_actual = accept(sd, (struct sockaddr *)&pin, &addrlen)) == -1) {
 		perror("accept");
 		exit(1);
 	}
-	char sigue='S';
-	char msgReceived[1000];
-	strcpy(json," ");
-	while(sigue=='S'){				
-		/* tomar un mensaje del cliente */
-		int n = recv(sd_actual, msg, sizeof(msg), 0);
-		if (n == -1) {
-			perror("recv");
-			exit(1);
-		}		
-		msg[n] = '\0';		
-		//printf("Client sent: %d caracteres", n);
-		printf("Client sent: %s\n", msg);
-		if((strcmp(msg,"close")==0)){ //it means that the conversation must be closed
-			sigue='N';
-			strcpy(json,"close");
-		}else{
-			//convert msg received to json format
-      
-      char temp[1000]; 
-      strcpy(temp, msg);
 
-      char *token = strtok(temp, ".");
-      if (token == NULL) {
-          printf("Mensaje inválido.\n");
-      }
+  // Bucle principal: aceptar conexiones y crear un proceso hijo para cada cliente
+  while(1) {
+    addrlen = sizeof(pin);
+    sd_actual = accept(sd, (struct sockaddr *)&pin, &addrlen);
+    if (sd_actual == -1) {
+      perror("accept");
+      continue;
+    }
 
-      int rule = atoi(token); 
-      
-      switch (rule) {
-        case 1:
-          char *name1 = strtok(NULL, ".");
-          char *pass1 = strtok(NULL, ".");
-          if (name1 == NULL || pass1 == NULL){
-            printf("error");
-            return 1;
-          }
-          validateUser(name1, pass1);
-          break;
+    pid_t pid = fork();
+    if (pid < 0) {
+      perror("fork");
+      close(sd_actual);
+      continue;
+    }
+    if (pid == 0) { //Proceso del hijo
+      close(sd); //No necesita el socket de escucha
+      strcpy(json, " ");
+      char sigue = 'S';
+    
+      while(sigue=='S'){				
+        /* tomar un mensaje del cliente */
+        int n = recv(sd_actual, msg, sizeof(msg), 0);
+        if (n == -1) {
+          perror("recv");
+          exit(1);
+        }		
+        msg[n] = '\0';		
+        printf("Client (}PID %d) envió: %s", (int)getpid(), msg);
+        
+        if((strcmp(msg,"close")==0)){ //it means that the conversation must be closed
+          sigue='N';
+          strcpy(json,"close");
+        } else {
+          //convert msg received to json format
           
-        case 2:
-          char *name2 = strtok(NULL, ".");
-          char *pass2 = strtok(NULL, ".");
-          if (name2 == NULL || pass2 == NULL){
-            printf("error");
-            return 1;
+          char temp[msgSIZE];
+          strcpy(temp, msg);
+          char *token = strtok(temp, ".");
+          int rule = atoi(token);
+          
+          switch (rule) {
+            case 1:
+              char *name1 = strtok(NULL, ".");
+              char *pass1 = strtok(NULL, ".");
+              if (name1 == NULL || pass1 == NULL){
+                printf("error");
+                return 1;
+              }
+              validateUser(name1, pass1);
+              break;
+              
+            case 2:
+              char *name2 = strtok(NULL, ".");
+              char *pass2 = strtok(NULL, ".");
+              if (name2 == NULL || pass2 == NULL){
+                printf("error");
+                return 1;
+              }
+              addUser(name2, pass2);
+              break;
+
+            case 3:
+              char *word = strtok(NULL, ".");
+              if (word) {
+                printf("Palabra secreta recibida: %s\n", word);
+                int len = strlen(word);
+                char display[len+1];
+                for (int i=0; i<len; i++) {
+                  if (word[i] != ' ') display[i] = '_';
+                  else display[i] = ' ';
+                }
+                display[len] = '\0';
+                snprintf(action, sizeof(action), "3.%s", display);
+              }
+              break;
+
+            case 4:
+              char *guess = strtok(NULL, ".");
+              if (guess) {
+                //Prueba de respuesta
+                printf("Intento recibido: %s\n", guess);
+                //Caso de éxito
+                snprintf(action, sizeof(action), "4.%s.%d", display, 1);
+              }
+
+            default:
+              printf("No se pudo\n");
+            
+            }
           }
-          addUser(name2, pass2);
-          break;
-
-        default:
-          printf("No se pudo\n");
-        } 
-
-			//----------------------------------
-		}		
-		/* enviando la respuesta del servicio */
-		int sent;
-		if ( sent = send(sd_actual, json, strlen(json), 0) == -1) {
-			perror("send");
-			exit(1);
-		}
-	}
-
-/* cerrar los dos sockets */
-	close(sd_actual);  
-   close(sd);
-   printf("Conexion cerrada\n");
-	return 0;
-
-
-
+          close(sd_actual);
+          printf("Conexión cerrada en proceso hijo (PID %d).\n", (int)getpid());
+          exit(0);
+      } else {
+        // Proceso padre: cierra el descriptor del cliente y sigue aceptando conexiones
+        close(sd_actual);
+      }
+    }
+    close(sd);
+    return 0;
+  }
 }
