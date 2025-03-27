@@ -10,7 +10,6 @@
 
 #define MAX_LENGTH 100
 #define FILE_NAME "users.txt"
-
 #define  msgSIZE   1000     
 #define  PUERTO    5000	 
 
