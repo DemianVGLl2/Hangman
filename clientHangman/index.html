@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Hangman</title>
+        <link href="css/index.css" type="text/css" rel="stylesheet">
+        <style>
+        body{
+            background-image: url('cool-background.png');
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-attachment: fixed;
+        }
+        </style>
+    </head>
+    <body>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+        <script src="./transition.js"></script>
+        <div class="transition">
+            <div class="transition-row row1">
+                <div class="block"></div>
+                <div class="block"></div>
+                <div class="block"></div>
+                <div class="block"></div>
+            </div>
+            <div class="transition-row row2">
+                <div class="block"></div>
+                <div class="block"></div>
+                <div class="block"></div>
+                <div class="block"></div>
+            </div>
+        </div>
+        <div class="loginText">
+            <h1>Welcome to hangman</h1>
+            <h2>
+                <em>Login</em>
+            </h2>
+        </div>
+        <div class="loginInput">
+            <h3>
+                <strong>Username</strong>
+            </h3>
+            <input type="text" name="username"/>
+            <h3>
+                <strong>Password</strong>
+            </h3>
+            <input type="text" name="username"/>
+            <input type="submit" value="Submit"/>
+            <a href="./game.html">Go</a>
+        </div>
+    </body>
+</html>
