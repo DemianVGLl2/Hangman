@@ -7,7 +7,7 @@
         <link href="css/game.css" type="text/css" rel="stylesheet">
         <style>
         body{
-            background-image: url('cool-background2.png');
+            background-image: url('img/cool-background2.png');
             background-repeat: no-repeat;
             background-size: cover;
             background-attachment: fixed;
@@ -17,6 +17,21 @@
     <body>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
         <script src="./transition.js"></script>
+        <script src="./lives.js"></script>
+        <div class="word-modal">
+            <div class="word-modal-content">
+                <h2><strong>Its your turn to add a word</strong></h2>
+                <div class="input-group">
+                    <h3>
+                        <strong>Put your word here</strong>
+                    </h3>
+                    <input type="text" class="word-input" placeholder="localhost"/>
+                </div>
+                <div class="input-buttons">
+                    <button class="apply-word">Apply</button>
+                </div>
+            </div>
+        </div>
         <div class="transition">
             <div class="transition-row row1">
                 <div class="block"></div>
@@ -33,28 +48,46 @@
         </div>
         <div>
             <table border="5">
-                <thead>
-                    <tr>
-                        <th colspan="2">Important data</th>
-                    </tr>
-                    <tr> 
-                        <th>Word to guess</th> 
-                        <th>Select a letter to try</th>
-                    </tr>
-                </thead> 
-                    <tr>  
-                    <td></td>
-                    <td></td>
-                </tr> 
-                <tfoot>
-                    <td>Letters guessed</td>
-                    <td>a,x,t,r</td>
-                </tfoot>
-                <tfoot> 
-                    <td>_ _ _ _ _</td>
-                    <td><input type="text" name="guess"/></td>
-                </tfoot>
+                <td>
+                   <img src="img/jinx.jpg" class="hang-img"/>
+                </td>
+                <tr>
+                    <table border="5">
+                        <thead>
+                            <tr>
+                                <th colspan="2">Important data</th>
+                            </tr>
+                            <tr> 
+                                <th>Word to guess</th> 
+                                <th>Select a letter to try</th>
+                            </tr>
+                        </thead> 
+                            <tr>  
+                            <td></td>
+                            <td></td>
+                        </tr> 
+                        <tfoot>
+                            <td>Letters guessed</td>
+                            <td>a,x,t,r</td>
+                        </tfoot>
+                        <tfoot> 
+                            <td>_ _ _ _ _</td>
+                            <td><input type="text" class="guess"/></td>
+                        </tfoot>
+                        <tfoot>
+                            <td>Action</td>
+                            <td><button>Guess</button><button>1 letter</button></td>
+                        </tfoot>
+                        <tfoot>
+                            <td>Lives</td>
+                            <td class="lives-display">(...)</td>
+                        </tfoot>
+                    </table>
+                </tr>    
             </table>
+            <button class="lives-plus">+</button>
+            <button class="lives-minus">-</button>
+            <button class="stupid">Stupid</button>
         </div>
     </body>
 </html>

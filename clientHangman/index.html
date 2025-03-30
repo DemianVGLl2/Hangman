@@ -7,7 +7,7 @@
         <link href="css/index.css" type="text/css" rel="stylesheet">
         <style>
         body{
-            background-image: url('cool-background.png');
+            background-image: url('img/cool-background.png');
             background-repeat: no-repeat;
             background-size: cover;
             background-attachment: fixed;
@@ -17,6 +17,28 @@
     <body>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
         <script src="./transition.js"></script>
+        <script src="./login.js"></script>
+        <div class="server-modal">
+            <div class="server-modal-content">
+                <h2>Server connection</h2>
+                <div class="server-input-group">
+                    <h3>
+                        <strong>Server Address</strong>
+                    </h3>
+                    <input type="text" class="server-address" placeholder="localhost"/>
+                </div>
+                <div class="server-input-group">
+                    <h3>
+                        <strong>Port</strong>
+                    </h3>
+                    <input type="text" class="server-port" placeholder="5000"/>
+                </div>
+                <div class="server-buttons">
+                    <button class="apply-server">Apply</button>
+                    <button class="cancel-server">Cancel</button>
+                </div>
+            </div>
+        </div>
         <div class="transition">
             <div class="transition-row row1">
                 <div class="block"></div>
@@ -31,23 +53,26 @@
                 <div class="block"></div>
             </div>
         </div>
-        <div class="loginText">
-            <h1>Welcome to hangman</h1>
-            <h2>
-                <em>Login</em>
-            </h2>
-        </div>
-        <div class="loginInput">
-            <h3>
-                <strong>Username</strong>
-            </h3>
-            <input type="text" name="username"/>
-            <h3>
-                <strong>Password</strong>
-            </h3>
-            <input type="text" name="username"/>
-            <input type="submit" value="Submit"/>
-            <a href="./game.html">Go</a>
+        <div class="main">
+            <div class="loginText">
+                <h1>Welcome to hangman</h1>
+                <h2>
+                    <em>Login</em>
+                </h2>
+            </div>
+            <div class="loginInput">
+                <h3>
+                    <strong>Username</strong>
+                </h3>
+                <input type="text" class="username"/>
+                <h3>
+                    <strong>Password</strong>
+                </h3>
+                <input type="password" class="password"/>
+                <input type="submit" value="Submit" class="submit"/>
+                <a href="./game.html">Go</a>
+            </div>
+            
         </div>
     </body>
 </html>
