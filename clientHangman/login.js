@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", (e) => {
-    let socket; // This will hold our WebSocket connection
     let username, password, address, port;
+    const PROXY_ADDRESS = "localhost"; // Dirección del servidor proxy
+    const PROXY_PORT = "8080";         // Puerto del servidor proxy
 
     // DOM elements
     const usernameInputElement = document.querySelector(".username");
@@ -64,28 +65,43 @@ document.addEventListener("DOMContentLoaded", (e) => {
             alert("Please configure your server connection");
             return;
         }
-
-        // Connect to WebSocket (not creating a server!)
-        socket = new WebSocket(`ws://${address}:${port}`);
+    
+        // Almacenar los datos del servidor real para uso posterior
+        localStorage.setItem('serverConfig', JSON.stringify({
+            address: address,
+            port: port
+        }));
+    
+        // Usar el proxy WebSocket en lugar del servidor directo
+        const socket = new WebSocket(`ws://${PROXY_ADDRESS}:${PROXY_PORT}`);
         
-        
-
         socket.onopen = function() {
+            console.log("Connected to proxy server");
             
-            // Send authentication data
-            socket.send(`1.${username}.${password}`);
-            console.log("Here");
-            // Handle server responses
+            // Enviar mensaje de configuración
+            const serverInfo = {
+                type: "connection",
+                serverAddress: address,
+                serverPort: port
+            };
+            socket.send(JSON.stringify(serverInfo));
+            
+            // Luego enviar datos de autenticación
+            setTimeout(() => {
+                socket.send(`1.${username}.${password}`);
+                console.log("Sent authentication data");
+            }, 500);
+            
+            // Manejar respuestas del servidor
             socket.onmessage = function(event) {
+                console.log("Response received:", event.data);
                 const [rule, ...data] = event.data.split('.');
                 if (rule === "1" && data[0] === "success") {
-                    // Store socket in localStorage to access it in game.html
                     localStorage.setItem('hangmanSocket', JSON.stringify({
-                        address: address,
-                        port: port
+                        address: PROXY_ADDRESS,
+                        port: PROXY_PORT
                     }));
-                    
-                    // Redirect to game page
+                    // Redirige a game.html
                     window.location.href = "game.html";
                 } else {
                     alert("Login failed: " + data.join(' '));
@@ -95,7 +111,11 @@ document.addEventListener("DOMContentLoaded", (e) => {
         
         socket.onerror = function(error) {
             console.error("WebSocket error:", error);
-            alert("Connection failed. Please check server address and port.");
+            alert("Connection failed. Please make sure the proxy server is running.");
+        };
+        
+        socket.onclose = function() {
+            console.log("Connection closed");
         };
     }
 });

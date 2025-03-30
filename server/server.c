@@ -86,6 +86,12 @@ int main() {
   sind.sin_family = AF_INET;
   sind.sin_addr.s_addr = INADDR_ANY;   /* INADDR_ANY=0x000000 = yo mismo */
   sind.sin_port = htons(PUERTO);    
+
+  int opt = 1;
+  if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+      perror("setsockopt");
+      exit(1);
+  }
   
   if (bind(sd, (struct sockaddr *)&sind, sizeof(sind)) == -1) {
     perror("bind");
@@ -150,46 +156,59 @@ int main() {
             case 1:
               char *name1 = strtok(NULL, ".");
               char *pass1 = strtok(NULL, ".");
-              if (name1 == NULL || pass1 == NULL){
-                printf("error");
-                return 1;
+              if (name1 == NULL || pass1 == NULL) {
+                  printf("error");
+                  return 1;
               }
-              validateUser(name1, pass1);
+              if (validateUser(name1, pass1)) {
+                  strcpy(action, "1.success");
+              } else {
+                  strcpy(action, "1.failed");
+              }
               break;
               
             case 2:
               char *name2 = strtok(NULL, ".");
               char *pass2 = strtok(NULL, ".");
-              if (name2 == NULL || pass2 == NULL){
-                printf("error");
-                return 1;
+              if (name2 == NULL || pass2 == NULL) {
+                  printf("error");
+                  return 1;
               }
               addUser(name2, pass2);
+              strcpy(action, "2.added");
               break;
 
             case 3:
               char *word = strtok(NULL, ".");
               if (word) {
-                printf("Palabra secreta recibida: %s\n", word);
-                int len = strlen(word);
-                for (int i=0; i<len; i++) {
-                  if (word[i] != ' ') display[i] = '_';
-                  else display[i] = ' ';
-                }
-                display[len] = '\0';
-                snprintf(action, sizeof(action), "3.%s", display);
+                  printf("Palabra secreta recibida: %s\n", word);
+                  int len = strlen(word);
+                  // Declarar display con suficiente espacio
+                  char display[len+1];
+                  for (int i = 0; i < len; i++) {
+                      if (word[i] != ' ')
+                          display[i] = '_';
+                      else
+                          display[i] = ' ';
+                  }
+                  display[len] = '\0';
+                  // Construir mensaje de respuesta: rule 3 + display
+                  snprintf(action, sizeof(action), "3.%s", display);
               }
               break;
 
             case 4:
-              char *guess = strtok(NULL, ".");
-              if (guess) {
-                //Prueba de respuesta
+            char *guess = strtok(NULL, ".");
+            if (guess) {
                 printf("Intento recibido: %s\n", guess);
-                //Caso de éxito
-                snprintf(action, sizeof(action), "4.%s.%d", display, 1);
-              }
-              break;
+                // Aquí deberías implementar la lógica para comparar 'guess' con la palabra secreta
+                // y actualizar la variable 'display' en consecuencia.
+                // Para el ejemplo, asumiremos que el intento es exitoso.
+                int result = 1; // 1 = acierto, 0 = fallo
+                // Construir respuesta: rule 4, display actualizado, y resultado
+                snprintf(action, sizeof(action), "4.%s.%d", display, result);
+            }
+            break;
 
             default:
               printf("No se pudo\n");
