@@ -8,6 +8,9 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import java.awt.*;
 
+import java.io.*;
+import java.net.*;
+
 public class Main {
     private static int imageToShow = 0;
     private static JLabel gameImageLabel;
@@ -27,7 +30,7 @@ public class Main {
         String host, port;
         Object[] options = {"Forfeit"};
         //Text field para pedir host y puerto
-        JTextField hostField = new JTextField(5);
+        JTextField hostField = new JTextField(10);
         JTextField portField = new JTextField(5);
 
         JPanel connectionPanel = new JPanel();
@@ -36,6 +39,17 @@ public class Main {
         connectionPanel.add(Box.createHorizontalStrut(15)); // a spacer
         connectionPanel.add(new JLabel("Port:"));
         connectionPanel.add(portField);
+
+        //Text field y panel para usuario y contrasena
+        JTextField usernameField = new JTextField(10);
+        JTextField passwordField = new JTextField(10);
+
+        JPanel userAuthPanel = new JPanel();
+        userAuthPanel.add(new JLabel("Username:"));
+        userAuthPanel.add(usernameField);
+        userAuthPanel.add(new JLabel("Password:"));
+        userAuthPanel.add(passwordField);
+
 
         //Text field para los guess
         JTextField guessField = new JTextField(5);
@@ -71,8 +85,46 @@ public class Main {
         if (result == JOptionPane.OK_OPTION) {
             host = hostField.getText();
             port = portField.getText();
+
+            try (Socket socket = new Socket(host, Integer.parseInt(port)); //Instancia un socket
+            OutputStream out = socket.getOutputStream();
+            InputStream in = socket.getInputStream();
+            BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in))) { //Para tomar lo que escribe el usuario
+
+            System.out.println("Conectado al servidor en " + host + ":" + port);
+            byte[] buffer = new byte[10000];
+            String message;
+
+            while (true) {
+                System.out.print("Mensaje al servidor: ");
+                message = userInput.readLine();
+                out.write(message.getBytes());
+                out.flush();
+                if ("close".equalsIgnoreCase(message)) {
+                    System.out.println("Cerrando conexiÃ³n...");
+                    break;
+                }
+
+                int bytesRead = in.read(buffer);
+                if(bytesRead == -1) break;
+
+                String response = new String(buffer, 0, bytesRead); 
+                System.out.println("Servidor: " + response);
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
             System.out.println(host + ":" + port);
             if (host.equals("localhost") && port.equals("5000")) { //Cambiar a si el usuario esta auntenticado
+                int auth = JOptionPane.showConfirmDialog(null, userAuthPanel, "Please write your user and password",
+                        JOptionPane.OK_CANCEL_OPTION);
+                        
+                        
+                        
+                        // if(autenticado)
                 int guess = JOptionPane.showOptionDialog(null, guessPanel,
                         "What will it be...", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
                 changeImage(true); //Cambiar a si el guess es correcto o incorrecto en vez de true

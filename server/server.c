@@ -11,11 +11,12 @@
 #include <netinet/in.h>
 #include <sys/time.h>
 
+
 #define MAX_LENGTH 100
 #define FILE_NAME "users.txt"
 #define msgSIZE 1000
 #define PUERTO 5000
-#define TIMEOUT_SEC 10 // Tiempo de espera en segundos
+#define TIMEOUT_SEC 200 // Tiempo de espera en segundos
 #define MAX_PLAYERS 2  // Solo 2 jugadores
 
 // Variable global para los sockets de ambos jugadores
@@ -29,6 +30,7 @@ char revealed[MAX_LENGTH] = "";         // Palabra parcialmente revelada
 int attempts = 0;                       // Intentos fallidos
 int game_active = 0;                    // Si hay un juego activo
 
+
 int validateUser(const char *username, const char *password){
   char fileUser[MAX_LENGTH], filePass[MAX_LENGTH];
   FILE *file = fopen(FILE_NAME, "r");
@@ -38,11 +40,13 @@ int validateUser(const char *username, const char *password){
   }
   int found = 0;
   while (fgets(fileUser, MAX_LENGTH, file) && fgets(filePass, MAX_LENGTH, file)) {
-    fileUser[strcspn(fileUser, "\n")] = 0;
-    filePass[strcspn(filePass, "\n")] = 0;
+    fileUser[strcspn(fileUser, "\n")] = '\0';
+    filePass[strcspn(filePass, "\n")] = '\0';
+    // printf("%s yes %s\n", username, password);  
+    // printf("%s yes2 %s\n", fileUser, filePass);  
     if (strcmp(username, fileUser) == 0 && strcmp(password, filePass) == 0) {
       found = 1;
-      break;
+      break;  
     }
   }
   fclose(file);
@@ -72,13 +76,17 @@ char* processMessage(int socket, char *msg) {
   char *command = strtok(msg, ".");
   if (!command) return "error.format_incorrect";
 
-  if (strcmp(command, "1") == 0) {
+  if (strcmp(command, "1") == 0) {/////////////////////////////////////////////////////////////////////////////////////////////
     char *username = strtok(NULL, ".");
     char *password = strtok(NULL, ".");
 
+   
     if (!username || !password) return "error.format_incorrect";
 
     if (validateUser(username, password)) {
+    // if (1) {
+      printf("%s yes %s\n", username, password);  
+
       if (player_count < MAX_PLAYERS) {
         player_sockets[player_count] = socket;
         player_count++;
@@ -98,7 +106,9 @@ char* processMessage(int socket, char *msg) {
     } else {
       sprintf(response, "login.fail.invalid_credentials");
     }
-  } else if (strcmp(command, "2")) {
+    
+  } else if (strcmp(command, "2")) {////////////////////////////////////////////////////////////////////////////////////////////////////
+    printf("COMMAND2: %s", command);
     char *username = strtok(NULL, ".");
     char *password = strtok(NULL, ".");
     if (!username || !password) {
@@ -107,11 +117,12 @@ char* processMessage(int socket, char *msg) {
     
     if (!validateUser(username, password)) {
       addUser(username, password);
-      sprintf(response, "register.ok");
+      sprintf(response, "2.ok");
     } else {
       sprintf(response, "register.fail.user_exists");
     }
-  } else if (strcmp(command, "3")) {
+  } else if (strcmp(command, "3")) {/////////////////////////////////////////////////////////////////////////////////////////////////////
+    printf("COMMAND3: %s", command);
     char *new_word = strtok(NULL, ".");
     if (!new_word) return "error.formato_incorrecto";
 
@@ -133,7 +144,7 @@ char* processMessage(int socket, char *msg) {
     } else {
       sprintf(response, "word.fail.not_allowed");
     }
-  } else if (strcmp(command, "4")) {
+  } else if (strcmp(command, "4")) { ///////////////////////////////////////////////////////////////////////////////////////////////////////
     char *letter_str = strtok(NULL, ".");
     if (!letter_str || strlen(letter_str) != 1) return "error.format_incorrect";
 
@@ -154,7 +165,7 @@ char* processMessage(int socket, char *msg) {
           
           char notify[msgSIZE];
           sprintf(notify, "game.over.win");
-          send(player_sockets[0], notify. strlen(notify), 0);
+          send(player_sockets[0], notify, strlen(notify), 0);
 
           game_active = 0;
         } else {
@@ -177,7 +188,7 @@ char* processMessage(int socket, char *msg) {
         }
       }
     } else sprintf(response, "guess.fail.not_allowed");
-  } if (strcmp(command, "5") == 0) {
+  } else if (strcmp(command, "5") == 0) {
     if (socket == player_sockets[0] && !game_active) {
       memset(word, 0, sizeof(word));
       memset(revealed, 0, sizeof(revealed));
@@ -190,7 +201,9 @@ char* processMessage(int socket, char *msg) {
       
       sprintf(response, "restart.ok");
     } else sprintf(response, "restart.fail");
-  } else sprintf(response, "error.comando_desconocido");
+  } else {
+    sprintf(response, "error.comando_desconocido");
+  }
   return response;
 }
 
@@ -257,6 +270,7 @@ int main() {
   printf("Servidor iniciado en el puerto %d. Esperando conexiones...\n", PUERTO);
   fflush(stdout);
 
+
   while(1) {
     socklen_t addrlen = sizeof(pin);
     sd_actual = accept(sd, (struct sockaddr *)&pin, &addrlen);
@@ -297,6 +311,8 @@ int main() {
         msg[n] = '\0';
         printf("Cliente (PID %d) envió: %s\n", (int)getpid(), msg);
         fflush(stdout);
+
+        
 
         char *response = processMessage(sd_actual, msg);
 
