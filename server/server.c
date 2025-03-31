@@ -72,6 +72,7 @@ char* processMessage(int socket, char *msg) {
   char *command = strtok(msg, ".");
   if (!command) return "error.format_incorrect";
 
+  //Inicio de sesión
   if (strcmp(command, "1") == 0) {
     char *username = strtok(NULL, ".");
     char *password = strtok(NULL, ".");
@@ -98,7 +99,9 @@ char* processMessage(int socket, char *msg) {
     } else {
       sprintf(response, "login.fail.invalid_credentials");
     }
-  } else if (strcmp(command, "2")) {
+  }
+  //Registrar usuario
+  else if (strcmp(command, "2")) {
     char *username = strtok(NULL, ".");
     char *password = strtok(NULL, ".");
     if (!username || !password) {
@@ -111,7 +114,9 @@ char* processMessage(int socket, char *msg) {
     } else {
       sprintf(response, "register.fail.user_exists");
     }
-  } else if (strcmp(command, "3")) {
+  }
+  //Crear palabra
+  else if (strcmp(command, "3")) {
     char *new_word = strtok(NULL, ".");
     if (!new_word) return "error.formato_incorrecto";
 
@@ -133,7 +138,9 @@ char* processMessage(int socket, char *msg) {
     } else {
       sprintf(response, "word.fail.not_allowed");
     }
-  } else if (strcmp(command, "4")) {
+  }
+  //Adivinar palabra
+  else if (strcmp(command, "4")) {
     char *letter_str = strtok(NULL, ".");
     if (!letter_str || strlen(letter_str) != 1) return "error.format_incorrect";
 
@@ -177,7 +184,9 @@ char* processMessage(int socket, char *msg) {
         }
       }
     } else sprintf(response, "guess.fail.not_allowed");
-  } if (strcmp(command, "5") == 0) {
+  }
+  //Reiniciar
+  else if (strcmp(command, "5") == 0) {
     if (socket == player_sockets[0] && !game_active) {
       memset(word, 0, sizeof(word));
       memset(revealed, 0, sizeof(revealed));
