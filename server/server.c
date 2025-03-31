@@ -76,7 +76,8 @@ char* processMessage(int socket, char *msg) {
   char *command = strtok(msg, ".");
   if (!command) return "error.format_incorrect";
 
-  if (strcmp(command, "1") == 0) {/////////////////////////////////////////////////////////////////////////////////////////////
+  //Inicio de sesión
+  if (strcmp(command, "1") == 0) {
     char *username = strtok(NULL, ".");
     char *password = strtok(NULL, ".");
 
@@ -188,7 +189,9 @@ char* processMessage(int socket, char *msg) {
         }
       }
     } else sprintf(response, "guess.fail.not_allowed");
-  } else if (strcmp(command, "5") == 0) {
+  }
+  //Reiniciar
+  else if (strcmp(command, "5") == 0) {
     if (socket == player_sockets[0] && !game_active) {
       memset(word, 0, sizeof(word));
       memset(revealed, 0, sizeof(revealed));
