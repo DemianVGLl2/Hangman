@@ -1,38 +1,40 @@
-// Compilacion: cc tcpserver.c -lnsl -o tcpserver
-// Ejecución: ./tcpserver
+// Compilacion: cc server.c -lnsl -o server
+// Ejecución: ./server
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <netdb.h>
-#include <signal.h>	
+#include <signal.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <sys/time.h>
 
 #define MAX_LENGTH 100
 #define FILE_NAME "users.txt"
-#define  msgSIZE   1000     
-#define  PUERTO    5000	 
-
+#define msgSIZE 1000
+#define PUERTO 5000
+#define TIMEOUT_SEC 10 // Tiempo de espera en segundos
 
 int validateUser(const char *username, const char *password){
   char fileUser[MAX_LENGTH], filePass[MAX_LENGTH];
   FILE *file = fopen(FILE_NAME, "r");
-    if (!file) {
-        perror("Error al abrir el archivo");
-        return 0;
+  if (!file) {
+    perror("Error al abrir el archivo");
+    return 0;
+  }
+  int found = 0;
+  while (fgets(fileUser, MAX_LENGTH, file) && fgets(filePass, MAX_LENGTH, file)) {
+    fileUser[strcspn(fileUser, "\n")] = 0;
+    filePass[strcspn(filePass, "\n")] = 0;
+    if (strcmp(username, fileUser) == 0 && strcmp(password, filePass) == 0) {
+      found = 1;
+      break;
     }
-    int found = 0;
-    while (fgets(fileUser, MAX_LENGTH, file) && fgets(filePass, MAX_LENGTH, file)) {
-        fileUser[strcspn(fileUser, "\n")] = 0;
-        filePass[strcspn(filePass, "\n")] = 0;
-        if (strcmp(username, fileUser) == 0 && strcmp(password, filePass) == 0) {
-            found = 1;
-            break;
-        }
-    }
-    //printf("Validado %d\n", found);
-    fclose(file);
-    return found;
+  }
+  fclose(file);
+  return found;
 }
 
 void addUser(const char *username, const char *password){
@@ -40,18 +42,14 @@ void addUser(const char *username, const char *password){
     printf("El usuario ya existe. No se puede agregar nuevamente.\n");
     return;
   }
-
   FILE *file = fopen(FILE_NAME, "a");
   if (!file) {
-      perror("Error al abrir el archivo");
-      return;
+    perror("Error al abrir el archivo");
+    return;
   }
-
   fprintf(file, "%s\n%s\n", username, password);
   fclose(file);
   printf("Usuario agregado exitosamente.\n");
-
-  // printf("✅ Usuario agregado exitosamente.\n");
 }
 
 void aborta_handler(int sig){
@@ -59,40 +57,32 @@ void aborta_handler(int sig){
   exit(1);
 }
 
-void setWord(){
-
-}
-void guesseLetter(){
-
-}
-
 int main() {
   int sd, sd_actual;
-  int addrlen;
   struct sockaddr_in sind, pin;
-  char  msg[msgSIZE];	     /* parametro entrada y salida */
-	char  action[msgSIZE];
+  char msg[msgSIZE];
+  char action[msgSIZE];
 
   if(signal(SIGINT, aborta_handler) == SIG_ERR){
     perror("Could not set signal handler");
-     return 1;
+    return 1;
   }
 
   if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
     perror("socket");
     exit(1);
   }
-  
+
   sind.sin_family = AF_INET;
-  sind.sin_addr.s_addr = INADDR_ANY;   /* INADDR_ANY=0x000000 = yo mismo */
-  sind.sin_port = htons(PUERTO);    
+  sind.sin_addr.s_addr = INADDR_ANY;
+  sind.sin_port = htons(PUERTO);
 
   int opt = 1;
   if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-      perror("setsockopt");
-      exit(1);
+    perror("setsockopt");
+    exit(1);
   }
-  
+
   if (bind(sd, (struct sockaddr *)&sind, sizeof(sind)) == -1) {
     perror("bind");
     exit(1);
@@ -104,20 +94,20 @@ int main() {
   }
 
   printf("Servidor iniciado en el puerto %d. Esperando conexiones...\n", PUERTO);
+  fflush(stdout);
 
-  if ((sd_actual = accept(sd, (struct sockaddr *)&pin, &addrlen)) == -1) {
-		perror("accept");
-		exit(1);
-	}
-
-  // Bucle principal: aceptar conexiones y crear un proceso hijo para cada cliente
   while(1) {
-    addrlen = sizeof(pin);
+    socklen_t addrlen = sizeof(pin);
     sd_actual = accept(sd, (struct sockaddr *)&pin, &addrlen);
     if (sd_actual == -1) {
       perror("accept");
       continue;
     }
+
+    struct timeval timeout;
+    timeout.tv_sec = TIMEOUT_SEC;
+    timeout.tv_usec = 0;
+    setsockopt(sd_actual, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
     pid_t pid = fork();
     if (pid < 0) {
@@ -125,102 +115,36 @@ int main() {
       close(sd_actual);
       continue;
     }
-    if (pid == 0) { //Proceso del hijo
-      close(sd); //No necesita el socket de escucha
-      strcpy(action, " ");
+    if (pid == 0) { 
+      close(sd);
       char sigue = 'S';
-      char *display;
-    
-      while(sigue=='S'){				
-        /* tomar un mensaje del cliente */
-        int n = recv(sd_actual, msg, sizeof(msg), 0);
-        if (n == -1) {
-          perror("recv");
-          exit(1);
-        }		
-        msg[n] = '\0';		
-        printf("Client (}PID %d) envió: %s", (int)getpid(), msg);
-        
-        if((strcmp(msg,"close")==0)){ //it means that the conversation must be closed
-          sigue='N';
-          strcpy(action,"close");
+      while(sigue == 'S') { 
+        int n = recv(sd_actual, msg, sizeof(msg) - 1, 0);
+        if (n <= 0) {
+          perror("recv (timeout or error)");
+          break;
+        }
+        msg[n] = '\0';
+        printf("Cliente (PID %d) envió: %s\n", (int)getpid(), msg);
+        fflush(stdout);
+
+        if(send(sd_actual, "ack", 3, 0) == -1) {
+          perror("send ack");
         } else {
-          //convert msg received to action format
-          
-          char temp[msgSIZE];
-          strcpy(temp, msg);
-          char *token = strtok(temp, ".");
-          int rule = atoi(token);
-          
-          switch (rule) {
-            case 1:
-              char *name1 = strtok(NULL, ".");
-              char *pass1 = strtok(NULL, ".");
-              if (name1 == NULL || pass1 == NULL) {
-                  printf("error");
-                  return 1;
-              }
-              if (validateUser(name1, pass1)) {
-                  strcpy(action, "1.success");
-              } else {
-                  strcpy(action, "1.failed");
-              }
-              break;
-              
-            case 2:
-              char *name2 = strtok(NULL, ".");
-              char *pass2 = strtok(NULL, ".");
-              if (name2 == NULL || pass2 == NULL) {
-                  printf("error");
-                  return 1;
-              }
-              addUser(name2, pass2);
-              strcpy(action, "2.added");
-              break;
-
-            case 3:
-              char *word = strtok(NULL, ".");
-              if (word) {
-                  printf("Palabra secreta recibida: %s\n", word);
-                  int len = strlen(word);
-                  // Declarar display con suficiente espacio
-                  char display[len+1];
-                  for (int i = 0; i < len; i++) {
-                      if (word[i] != ' ')
-                          display[i] = '_';
-                      else
-                          display[i] = ' ';
-                  }
-                  display[len] = '\0';
-                  // Construir mensaje de respuesta: rule 3 + display
-                  snprintf(action, sizeof(action), "3.%s", display);
-              }
-              break;
-
-            case 4:
-            char *guess = strtok(NULL, ".");
-            if (guess) {
-                printf("Intento recibido: %s\n", guess);
-                // Aquí deberías implementar la lógica para comparar 'guess' con la palabra secreta
-                // y actualizar la variable 'display' en consecuencia.
-                // Para el ejemplo, asumiremos que el intento es exitoso.
-                int result = 1; // 1 = acierto, 0 = fallo
-                // Construir respuesta: rule 4, display actualizado, y resultado
-                snprintf(action, sizeof(action), "4.%s.%d", display, result);
-            }
-            break;
-
-            default:
-              printf("No se pudo\n");
-            
-          }
+          printf("Enviado: ack\n");
+          fflush(stdout);
+        }
+        
+        if(strcmp(msg,"close") == 0) {
+          sigue = 'N';
+          strcpy(action,"close");
         }
       }
-        close(sd_actual);
-        printf("Conexión cerrada en proceso hijo (PID %d).\n", (int)getpid());
-        exit(0);
+      close(sd_actual);
+      printf("Conexión cerrada en proceso hijo (PID %d).\n", (int)getpid());
+      fflush(stdout);
+      exit(0);
     } else {
-      // Proceso padre: cierra el descriptor del cliente y sigue aceptando conexiones
       close(sd_actual);
     }
   }

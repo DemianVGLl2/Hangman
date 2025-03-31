@@ -21,7 +21,7 @@ wss.on('connection', function connection(ws) {
       const jsonMessage = JSON.parse(message);
       if (jsonMessage.type === "connection") {
         serverConfig = {
-          address: jsonMessage.serverAddress || '172.17.69.134',
+          address: jsonMessage.serverAddress || 'localhost',
           port: parseInt(jsonMessage.serverPort) || 5000
         };
         
@@ -46,6 +46,11 @@ wss.on('connection', function connection(ws) {
         tcpClient.on('error', function(err) {
           console.log('Error en conexión TCP:', err);
           ws.send(`error.${err.message}`);
+        });
+
+        tcpClient.on('data', function(data) {
+          console.log('Respuesta del servidor C:', data.toString());
+          ws.send(data.toString());
         });
         
         return; // No reenviar mensaje de configuración al servidor C
