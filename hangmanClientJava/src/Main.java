@@ -16,7 +16,7 @@ public class Main {
     
     // Configuración de imágenes con escalado
     static {
-        String[] imagePaths = {"/pearto.jpg", "/butterDog.jpg", "/jinx.jpg", "/pearto.jpg"};
+        String[] imagePaths = {"/image1.jpg", "/image2.jpg", "/image3.jpg", "/image4.jpg", "/image5.jpg", "/image6.jpg"};
         images = new ImageIcon[imagePaths.length];
         
         for (int i = 0; i < imagePaths.length; i++) {
