@@ -14,6 +14,12 @@ public class Main {
     private static InputStream in;
     private static int playerRole = -1;
     private static final Object[] options = {"Forfeit"};
+    private static boolean gameActive = false;
+
+    // Referencias a las ventanas activas para poder cerrarlas
+    private static JFrame mainFrame = null;
+    private static JDialog activeGameDialog = null;
+    private static JOptionPane activeOptionPane = null;
     
     // Configuración de imágenes con escalado
     static {
@@ -30,14 +36,27 @@ public class Main {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             try {
+                // Crear el marco principal de la aplicación
+                mainFrame = new JFrame("Hangman Game");
+                mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+                mainFrame.setSize(400, 500);
+                mainFrame.setLocationRelativeTo(null);
+                
+                // Panel inicial con mensaje de carga
+                JPanel initialPanel = new JPanel(new BorderLayout());
+                initialPanel.add(new JLabel("Conectando al servidor...", SwingConstants.CENTER), BorderLayout.CENTER);
+                mainFrame.setContentPane(initialPanel);
+                mainFrame.setVisible(true);
+                
                 setupNetworkConnection();
                 if(handleLogin()){
                     handleCreateUser();
                 }
                 handleAuthentication();
-                handleGameFlow();
+                // Ahora solo esperamos a que el servidor asigne el rol
             } catch (Exception e) {
-                JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
+                JOptionPane.showMessageDialog(mainFrame, "Error: " + e.getMessage());
+                System.exit(1);
             }
         });
     }
@@ -53,7 +72,7 @@ public class Main {
         connectionPanel.add(new JLabel("Port:"));
         connectionPanel.add(portField);
 
-        int result = JOptionPane.showConfirmDialog(null, connectionPanel,
+        int result = JOptionPane.showConfirmDialog(mainFrame, connectionPanel,
                 "Conexión al Servidor", JOptionPane.OK_CANCEL_OPTION);
         
         if (result != JOptionPane.OK_OPTION) System.exit(0);
@@ -75,13 +94,20 @@ public class Main {
         authPanel.add(new JLabel("Contraseña:"));
         authPanel.add(passField);
 
-        int result = JOptionPane.showConfirmDialog(null, authPanel,
+        int result = JOptionPane.showConfirmDialog(mainFrame, authPanel,
                 "Autenticación", JOptionPane.OK_CANCEL_OPTION);
         
         if (result != JOptionPane.OK_OPTION) System.exit(0);
         
         String credentials = "1." + userField.getText() + "." + new String(passField.getPassword());
         sendMessage(credentials);
+        
+        // Mostrar panel de espera
+        JPanel waitPanel = new JPanel(new BorderLayout());
+        waitPanel.add(new JLabel("Esperando validación del servidor...", SwingConstants.CENTER), BorderLayout.CENTER);
+        mainFrame.setContentPane(waitPanel);
+        mainFrame.revalidate();
+        mainFrame.repaint();
     }
 
     private static void handleCreateUser() {
@@ -94,8 +120,8 @@ public class Main {
         authPanel.add(new JLabel("Nueva contraseña:"));
         authPanel.add(passField);
 
-        int result = JOptionPane.showConfirmDialog(null, authPanel,
-                "Autenticación", JOptionPane.OK_CANCEL_OPTION);
+        int result = JOptionPane.showConfirmDialog(mainFrame, authPanel,
+                "Crear Usuario", JOptionPane.OK_CANCEL_OPTION);
         
         if (result != JOptionPane.OK_OPTION) System.exit(0);
         
@@ -104,7 +130,7 @@ public class Main {
     }
 
     private static boolean handleLogin() {
-        JDialog dialog = new JDialog((Frame) null, "Iniciar sesión", true);
+        JDialog dialog = new JDialog(mainFrame, "Iniciar sesión", true);
         JPanel authPanel = new JPanel();
         JButton btnLogIn = new JButton("Log In");
         JButton btnCreateUser = new JButton("Crear Usuario");
@@ -113,12 +139,12 @@ public class Main {
 
         btnCreateUser.addActionListener(e -> {
             createUser.set(true);
-            dialog.dispose(); // Cierra el diálogo inmediatamente
+            dialog.dispose();
         });
 
         btnLogIn.addActionListener(e -> {
             createUser.set(false);
-            dialog.dispose(); // Cierra el diálogo
+            dialog.dispose();
         });
 
         authPanel.add(btnLogIn);
@@ -126,23 +152,29 @@ public class Main {
 
         dialog.setContentPane(authPanel);
         dialog.pack();
-        dialog.setLocationRelativeTo(null);
+        dialog.setLocationRelativeTo(mainFrame);
         dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-        dialog.setVisible(true); // Muestra el diálogo y espera hasta que se cierre
+        dialog.setVisible(true);
 
         return createUser.get();
     }
 
     private static void handleGameFlow() {
-        // Esperar asignación de rol del servidor
-        while (playerRole == -1) Thread.onSpinWait();
+        gameActive = true;
         
         if (playerRole == 1) {
-            String word = JOptionPane.showInputDialog("Escribe la palabra secreta:");
-            sendMessage("3." + word);
-            showGameMonitor();
-        } else {
+            String word = JOptionPane.showInputDialog(mainFrame, "Escribe la palabra secreta:");
+            if (word != null && !word.trim().isEmpty()) {
+                sendMessage("3." + word);
+                showGameMonitor();
+            } else {
+                JOptionPane.showMessageDialog(mainFrame, "Debes ingresar una palabra válida.");
+                handleGameFlow(); // Volver a solicitar la palabra
+            }
+        } else if (playerRole == 2) {
             showGuessInterface();
+        } else {
+            JOptionPane.showMessageDialog(mainFrame, "Error: Rol no válido asignado por el servidor.");
         }
     }
 
@@ -150,68 +182,135 @@ public class Main {
         JPanel guessPanel = new JPanel();
         guessPanel.setLayout(new BoxLayout(guessPanel, BoxLayout.Y_AXIS));
         
-        gameImageLabel = new JLabel(images[0]);
-        gameImageLabel.setPreferredSize(new Dimension(300, 300));
+        // Inicializar la etiqueta de imagen si aún no existe
+        if (gameImageLabel == null) {
+            gameImageLabel = new JLabel(images[0]);
+            gameImageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        }
         
-        // Campo para la letra
-        JTextField letterField = new JTextField(1);
-        JButton guessButton = new JButton("Adivinar");
-
-        // Campo para palabra completa
-        JTextField fullWordField = new JTextField(10);
-        JButton fullWordButton = new JButton("Adivinar palabra");
+        // Panel para la imagen y la palabra
+        JPanel displayPanel = new JPanel();
+        displayPanel.setLayout(new BoxLayout(displayPanel, BoxLayout.Y_AXIS));
+        displayPanel.add(Box.createVerticalStrut(10));
+        displayPanel.add(gameImageLabel);
+        displayPanel.add(Box.createVerticalStrut(10));
         
-        guessButton.addActionListener(e -> {
-            sendMessage("4." + letterField.getText().trim());
-            letterField.setText("");
-        });
-
-        fullWordButton.addActionListener(e -> {
-            sendMessage("4." + fullWordField.getText().trim()); // Comando hipotético para palabra
-            fullWordField.setText("");
-        });
-
-        guessPanel.add(gameImageLabel);
-        guessPanel.add(wordDisplayLabel);
-
+        // Asegurar que el label de la palabra tiene un tamaño adecuado
+        wordDisplayLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        wordDisplayLabel.setFont(new Font("Monospaced", Font.BOLD, 24));
+        displayPanel.add(wordDisplayLabel);
+        displayPanel.add(Box.createVerticalStrut(20));
+        
+        // Campo para adivinar letras
         JPanel letterPanel = new JPanel();
-        letterPanel.add(new JLabel("Letra:"));
-        letterPanel.add(letterField);
-        letterPanel.add(guessButton);
+        JTextField letterField = new JTextField(3);
+        JButton letterButton = new JButton("Adivinar Letra");
         
+        letterButton.addActionListener(e -> {
+            String letter = letterField.getText().trim();
+            if (!letter.isEmpty()) {
+                sendMessage("4." + letter.charAt(0));
+                letterField.setText("");
+            }
+        });
+        
+        letterPanel.add(new JLabel("Letra: "));
+        letterPanel.add(letterField);
+        letterPanel.add(letterButton);
+        
+        // Campo para adivinar palabra completa
         JPanel wordPanel = new JPanel();
-        wordPanel.add(new JLabel("Palabra completa:"));
+        JTextField fullWordField = new JTextField(15);
+        JButton fullWordButton = new JButton("Adivinar Palabra");
+        
+        fullWordButton.addActionListener(e -> {
+            String fullWord = fullWordField.getText().trim();
+            if (!fullWord.isEmpty()) {
+                sendMessage("5." + fullWord);
+                fullWordField.setText("");
+            }
+        });
+        
+        wordPanel.add(new JLabel("Palabra: "));
         wordPanel.add(fullWordField);
         wordPanel.add(fullWordButton);
         
-        guessPanel.add(letterPanel);
-        guessPanel.add(wordPanel);
-
-        int choice = JOptionPane.showOptionDialog(null, guessPanel, "Adivina la Palabra",
-                JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
-
-        if (choice == 0) {  // “Forfeit”
-            sendMessage("close");
-            JOptionPane.showMessageDialog(null, "Has abandonado el juego.");
-            System.exit(0);
-        }
-    }
-
-    private static void showGameMonitor() {
-        // Interfaz para el jugador que estableció la palabra
-        JPanel monitorPanel = new JPanel();
-        monitorPanel.add(new JLabel("Estado del Juego:"));
-        monitorPanel.add(wordDisplayLabel);
+        // Botón para salir del juego
+        JPanel forfeitPanel = new JPanel();
+        JButton forfeitButton = new JButton("Abandonar Juego");
         
-        int choice = JOptionPane.showOptionDialog(null, monitorPanel, "Monitor del Juego",
-                JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE, 
-                null, options, options[0]);
-
-        if (choice == 0) {  // “Forfeit”
-            sendMessage("close");
-            JOptionPane.showMessageDialog(null, "Has abandonado el juego.");
-            System.exit(0);
-        }
+        forfeitButton.addActionListener(e -> {
+            int confirm = JOptionPane.showConfirmDialog(mainFrame, 
+                "¿Estás seguro de que quieres abandonar el juego?", 
+                "Confirmar", JOptionPane.YES_NO_OPTION);
+            
+            if (confirm == JOptionPane.YES_OPTION) {
+                sendMessage("close");
+                JOptionPane.showMessageDialog(mainFrame, "Has abandonado el juego.");
+                System.exit(0);
+            }
+        });
+        
+        forfeitPanel.add(forfeitButton);
+        
+        // Agregar todos los paneles al panel principal
+        guessPanel.add(displayPanel);
+        guessPanel.add(Box.createVerticalStrut(20));
+        guessPanel.add(letterPanel);
+        guessPanel.add(Box.createVerticalStrut(10));
+        guessPanel.add(wordPanel);
+        guessPanel.add(Box.createVerticalStrut(20));
+        guessPanel.add(forfeitPanel);
+        
+        // Actualizar el contenido del marco principal
+        mainFrame.setContentPane(guessPanel);
+        mainFrame.setTitle("Hangman - Jugador Adivinando");
+        mainFrame.revalidate();
+        mainFrame.repaint();
+    }
+    
+    private static void showGameMonitor() {
+        JPanel monitorPanel = new JPanel();
+        monitorPanel.setLayout(new BoxLayout(monitorPanel, BoxLayout.Y_AXIS));
+        
+        JLabel statusLabel = new JLabel("Estado del Juego:", SwingConstants.CENTER);
+        statusLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        statusLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        
+        // Asegurar que el label de la palabra tiene un tamaño adecuado
+        wordDisplayLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        wordDisplayLabel.setFont(new Font("Monospaced", Font.BOLD, 24));
+        
+        // Botón para salir del juego
+        JPanel forfeitPanel = new JPanel();
+        JButton forfeitButton = new JButton("Abandonar Juego");
+        
+        forfeitButton.addActionListener(e -> {
+            int confirm = JOptionPane.showConfirmDialog(mainFrame, 
+                "¿Estás seguro de que quieres abandonar el juego?", 
+                "Confirmar", JOptionPane.YES_NO_OPTION);
+            
+            if (confirm == JOptionPane.YES_OPTION) {
+                sendMessage("close");
+                JOptionPane.showMessageDialog(mainFrame, "Has abandonado el juego.");
+                System.exit(0);
+            }
+        });
+        
+        forfeitPanel.add(forfeitButton);
+        
+        monitorPanel.add(Box.createVerticalStrut(20));
+        monitorPanel.add(statusLabel);
+        monitorPanel.add(Box.createVerticalStrut(20));
+        monitorPanel.add(wordDisplayLabel);
+        monitorPanel.add(Box.createVerticalStrut(40));
+        monitorPanel.add(forfeitPanel);
+        
+        // Actualizar el contenido del marco principal
+        mainFrame.setContentPane(monitorPanel);
+        mainFrame.setTitle("Hangman - Monitor de Juego");
+        mainFrame.revalidate();
+        mainFrame.repaint();
     }
 
     private static void listenToServer() {
@@ -225,67 +324,53 @@ public class Main {
                 processServerMessage(response);
             }
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(null, "Conexión perdida con el servidor");
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(mainFrame, "Conexión perdida con el servidor");
+                System.exit(1);
+            });
         }
     }
 
     private static void processServerMessage(String msg) {
         System.out.println("Server: " + msg);
         
-        // Manejo de errores
-        if (msg.startsWith("error.format_incorrect")) {
-            JOptionPane.showMessageDialog(null, "Error: Formato incorrecto. Por favor, revisa la entrada.");
-            // Vuelve a pedir autenticación o a la entrada del comando, según corresponda.
-            handleAuthentication();
-        }
-        else if (msg.startsWith("login.fail.invalid_credentials")) {
-            JOptionPane.showMessageDialog(null, "Error: Credenciales inválidas. Inténtalo de nuevo.");
-            handleAuthentication();
-        }
-        else if (msg.startsWith("register.fail.user_exists")) {
-            JOptionPane.showMessageDialog(null, "Error: El usuario ya existe. Por favor, intenta iniciar sesión.");
-            handleAuthentication();
-        }
-        else if (msg.startsWith("login.fail.server_full")) {
-            JOptionPane.showMessageDialog(null, "Error: El servidor está lleno. Inténtalo más tarde.");
-            System.exit(0);
-        }
-        else if (msg.startsWith("login.ok.role")) {
-            // Ejemplo: login.ok.role.1
+        if (msg.startsWith("login.ok.role")) {
             try {
                 String[] parts = msg.split("\\.");
                 playerRole = Integer.parseInt(parts[3]);
+                // Actualizar la interfaz cuando recibamos word.set o word.ok
             } catch (Exception e) {
-                JOptionPane.showMessageDialog(null, "Error procesando el mensaje de login.");
+                SwingUtilities.invokeLater(() -> 
+                    JOptionPane.showMessageDialog(mainFrame, "Error procesando el mensaje de login: " + e.getMessage())
+                );
             }
+        } 
+        else if (msg.startsWith("game.start")) {
+            SwingUtilities.invokeLater(() -> handleGameFlow());
         }
-        else if (msg.startsWith("progress") || msg.startsWith("guess.") || msg.startsWith("word.set")) {
-            handleGameProgress(msg);
+        else if (msg.startsWith("word.ok")) {
+            // Para el jugador 1, después de que su palabra fue aceptada
+            // No es necesario hacer nada más aquí, ya que ya se mostró la interfaz de monitor
         }
-        else if (msg.startsWith("game.over")) {
-            // Ejemplo: game.over.win o game.over.lose
-            attempts = 0;
-            updateGameImage(true);
-            boolean won = msg.contains("win");
-            showGameResult(won);
-        }
-        /*else {
-            // Para cualquier otro mensaje inesperado, lo mostramos
-            JOptionPane.showMessageDialog(null, "Mensaje inesperado del servidor: " + msg);
-        }*/
-    }
-
-    private static void handleGameProgress(String msg) {
-        SwingUtilities.invokeLater(() -> {
+        else if (msg.startsWith("word.set")) {
             String[] parts = msg.split("\\.");
-            
-            if (msg.startsWith("word.set")) { // Mensaje inicial para el jugador 2
+            SwingUtilities.invokeLater(() -> {
                 wordDisplayLabel.setText(parts[2]);
-            }
-            else if (msg.startsWith("progress")) { // Para el jugador 1
+                // Si aún no se ha mostrado la interfaz, mostrarla ahora
+                if (!gameActive && playerRole == 2) {
+                    handleGameFlow();
+                }
+            });
+        }
+        else if (msg.startsWith("progress")) {
+            String[] parts = msg.split("\\.");
+            SwingUtilities.invokeLater(() -> {
                 wordDisplayLabel.setText(parts[1]);
-            }
-            else if (msg.startsWith("guess.")) { // Para el jugador 2
+            });
+        }
+        else if (msg.startsWith("guess.")) {
+            String[] parts = msg.split("\\.");
+            SwingUtilities.invokeLater(() -> {
                 if (parts[1].equals("win") || parts[1].equals("lose")) {
                     wordDisplayLabel.setText(parts[2]); // Mostrar palabra completa
                     showGameResult(parts[1].equals("win"));
@@ -295,20 +380,120 @@ public class Main {
                         updateGameImage(false);
                     }
                 }
+            });
+        }
+        else if (msg.startsWith("game.over")) {
+            attempts = 0;
+            updateGameImage(true);
+            boolean won = msg.contains("win");
+            showGameResult(won);
+        }
+        else if (msg.startsWith("restart.ok") || msg.startsWith("game.restart")) {
+            SwingUtilities.invokeLater(() -> {
+                attempts = 0;
+                updateGameImage(true);
+                wordDisplayLabel.setText(""); // Limpiar la palabra mostrada
+                gameActive = false;
+                
+                // Verificar si el mensaje contiene información de rol
+                if (msg.contains("role")) {
+                    //Extrae el nuevo rol
+                    try {
+                        String[] parts = msg.split("\\.");
+                        playerRole = Integer.parseInt(parts[3]);
+                        
+                        JOptionPane.showMessageDialog(mainFrame, 
+                            "El juego se reinició. Ahora eres el jugador " + 
+                            (playerRole == 1 ? "que elige la palabra." : "que adivina."));
+                    } catch (Exception e) {
+                        JOptionPane.showMessageDialog(mainFrame, 
+                            "Error al procesar el nuevo rol: " + e.getMessage());
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(mainFrame, 
+                        "El juego se reinició. Iniciando nueva ronda.");
+                }
+
+                // Reiniciar el flujo del juego directamente
+                handleGameFlow();
+            });
+        }
+        else if (msg.startsWith("game.restart.role")) {
+            String[] parts = msg.split("\\.");
+            try {
+                playerRole = Integer.parseInt(parts[3]);
+                SwingUtilities.invokeLater(() -> {
+                    attempts = 0;
+                    updateGameImage(true);
+                    wordDisplayLabel.setText(""); // Limpiar la palabra mostrada
+                    gameActive = false;
+                    
+                    JOptionPane.showMessageDialog(mainFrame, 
+                        "El juego se reinició. Ahora eres el jugador " + 
+                        (playerRole == 1 ? "que elige la palabra." : "que adivina."));
+                    
+                    // Reiniciar el flujo del juego con el nuevo rol
+                    handleGameFlow();
+                });
+            } catch (NumberFormatException e) {
+                System.err.println("Error parsing role: " + e.getMessage());
             }
-        });
+        }
+        else if (msg.startsWith("restart.fail")) {
+            SwingUtilities.invokeLater(() -> 
+                JOptionPane.showMessageDialog(mainFrame, "No se pudo reiniciar el juego.")
+            );
+        }
+        else if (msg.startsWith("error.format_incorrect")) {
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(mainFrame, "Error: Formato incorrecto. Por favor, revisa la entrada.");
+                handleAuthentication();
+            });
+        }
+        else if (msg.startsWith("login.fail.invalid_credentials")) {
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(mainFrame, "Error: Credenciales inválidas. Inténtalo de nuevo.");
+                handleAuthentication();
+            });
+        }
+        else if (msg.startsWith("register.fail.user_exists")) {
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(mainFrame, "Error: El usuario ya existe. Por favor, intenta iniciar sesión.");
+                handleAuthentication();
+            });
+        }
+        else if (msg.startsWith("login.fail.server_full")) {
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(mainFrame, "Error: El servidor está lleno. Inténtalo más tarde.");
+                System.exit(0);
+            });
+        }
     }
 
     private static void showGameResult(boolean won) {
         SwingUtilities.invokeLater(() -> {
             JPanel resultPanel = new JPanel();
-            resultPanel.add(new JLabel(won ? "¡Ganaste!" : "¡Perdiste!"));
+            resultPanel.setLayout(new BoxLayout(resultPanel, BoxLayout.Y_AXIS));
+            
+            JLabel resultLabel = new JLabel(won ? "¡Ganaste!" : "¡Perdiste!");
+            resultLabel.setFont(new Font("Arial", Font.BOLD, 18));
+            resultLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
             
             JButton restartButton = new JButton("Reiniciar");
-            restartButton.addActionListener(e -> sendMessage("5"));
+            restartButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+            restartButton.addActionListener(e -> sendMessage("6"));
             
+            resultPanel.add(Box.createVerticalStrut(20));
+            resultPanel.add(resultLabel);
+            resultPanel.add(Box.createVerticalStrut(20));
             resultPanel.add(restartButton);
-            JOptionPane.showMessageDialog(null, resultPanel);
+            resultPanel.add(Box.createVerticalStrut(20));
+            
+            // Usar el mainFrame en lugar de un diálogo modal
+            mainFrame.setContentPane(resultPanel);
+            mainFrame.setTitle("Fin del Juego");
+            mainFrame.revalidate();
+            mainFrame.repaint();
         });
     }
 
@@ -317,19 +502,23 @@ public class Main {
             out.write(msg.getBytes());
             out.flush();
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(null, "Error enviando mensaje");
+            SwingUtilities.invokeLater(() -> 
+                JOptionPane.showMessageDialog(mainFrame, "Error enviando mensaje: " + e.getMessage())
+            );
         }
     }
 
     private static void updateGameImage(boolean reset) {
         SwingUtilities.invokeLater(() -> {
+            if (gameImageLabel == null) {
+                gameImageLabel = new JLabel(images[0]);
+            }
             if (reset) {
                 attempts = 0;
             } else {
                 attempts++;
             }
             System.out.println("Actual attempts: " + attempts);
-            
             if (attempts >= images.length - 1) {
                 gameImageLabel.setIcon(images[images.length - 1]);
             } else {
