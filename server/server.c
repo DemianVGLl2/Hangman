@@ -27,7 +27,6 @@ char word[MAX_LENGTH] = "";       // Palabra a adivinar
 char revealed[MAX_LENGTH] = "";   // Palabra parcialmente revelada
 int attempts = 0;                 // Intentos fallidos
 int game_active = 0;              // Si hay un juego activo
-int game_rounds = 0;              // Contador de rondas para alternar roles
 
 // Variables globales para los jugadores
 int player_sockets[MAX_PLAYERS] = {-1, -1};
@@ -159,7 +158,7 @@ char* processMessage(int socket, char *msg, int *player_role) {
         if (!new_word)
             return "error.format_incorrect";
         // Solo permite que el primer jugador establezca la palabra
-        if (socket == player_sockets[current_player]) {
+        if (socket == player_sockets[0]) {
             strcpy(word, new_word);
             memset(revealed, '_', strlen(word));
             for (int i = 0; i < strlen(word); i++) {
@@ -183,7 +182,7 @@ char* processMessage(int socket, char *msg, int *player_role) {
         if (!letter_str || strlen(letter_str) != 1)
             return "error.format_incorrect";
         char letter = letter_str[0];
-        if (socket == player_sockets[(current_player + 1) % 2] && game_active) {
+        if (socket == player_sockets[1] && game_active) {
             int found = 0;
             for (int i = 0; i < strlen(word); i++) {
                 if (word[i] == letter) {
@@ -196,13 +195,13 @@ char* processMessage(int socket, char *msg, int *player_role) {
                     sprintf(response, "guess.win.%s", word);
                     char notify[msgSIZE];
                     sprintf(notify, "game.over.win");
-                    send(player_sockets[current_player], notify, strlen(notify), 0);
+                    send(player_sockets[0], notify, strlen(notify), 0);
                     game_active = 0;
                 } else {
                     sprintf(response, "guess.%c.1.%s", letter, revealed);
                     char notify[msgSIZE];
                     sprintf(notify, "progress.%s.%c", revealed, letter);
-                    send(player_sockets[current_player], notify, strlen(notify), 0);
+                    send(player_sockets[0], notify, strlen(notify), 0);
                 }
             } else {
                 attempts++;
@@ -210,13 +209,13 @@ char* processMessage(int socket, char *msg, int *player_role) {
                     sprintf(response, "guess.lose.%s", word);
                     char notify[msgSIZE];
                     sprintf(notify, "game.over.lose");
-                    send(player_sockets[current_player], notify, strlen(notify), 0);
+                    send(player_sockets[0], notify, strlen(notify), 0);
                     game_active = 0;
                 } else {
                     sprintf(response, "guess.%c.0.%s", letter, revealed);
                     char notify[msgSIZE];
                     sprintf(notify, "progress.%s.%c", revealed, letter);
-                    send(player_sockets[current_player], notify, strlen(notify), 0);
+                    send(player_sockets[0], notify, strlen(notify), 0);
                 }
             }
         } else {
@@ -251,18 +250,11 @@ char* processMessage(int socket, char *msg, int *player_role) {
             memset(word, 0, sizeof(word));
             memset(revealed, 0, sizeof(revealed));
             attempts = 0;
-
-            game_rounds++;
-            current_player = game_rounds % 2;
-
             char notify[msgSIZE];
-            sprintf(notify, "game.restart.role.%d", 1); // Rol 1 para el jugador ahora en posición 0
+            sprintf(notify, "game.restart");
             send(player_sockets[0], notify, strlen(notify), 0);
-            
-            sprintf(notify, "game.restart.role.%d", 2); // Rol 2 para el jugador ahora en posición 1
             send(player_sockets[1], notify, strlen(notify), 0);
-            
-            //sprintf(response, "restart.ok");
+            sprintf(response, "restart.ok");
         } else {
             sprintf(response, "restart.fail");
         }

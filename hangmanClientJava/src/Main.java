@@ -395,49 +395,11 @@ public class Main {
                 wordDisplayLabel.setText(""); // Limpiar la palabra mostrada
                 gameActive = false;
                 
-                // Verificar si el mensaje contiene información de rol
-                if (msg.contains("role")) {
-                    //Extrae el nuevo rol
-                    try {
-                        String[] parts = msg.split("\\.");
-                        playerRole = Integer.parseInt(parts[3]);
-                        
-                        JOptionPane.showMessageDialog(mainFrame, 
-                            "El juego se reinició. Ahora eres el jugador " + 
-                            (playerRole == 1 ? "que elige la palabra." : "que adivina."));
-                    } catch (Exception e) {
-                        JOptionPane.showMessageDialog(mainFrame, 
-                            "Error al procesar el nuevo rol: " + e.getMessage());
-                    }
-                } else {
-                    JOptionPane.showMessageDialog(mainFrame, 
-                        "El juego se reinició. Iniciando nueva ronda.");
-                }
-
+                JOptionPane.showMessageDialog(mainFrame, "El juego se reinició. Iniciando nueva ronda.");
+                
                 // Reiniciar el flujo del juego directamente
                 handleGameFlow();
             });
-        }
-        else if (msg.startsWith("game.restart.role")) {
-            String[] parts = msg.split("\\.");
-            try {
-                playerRole = Integer.parseInt(parts[3]);
-                SwingUtilities.invokeLater(() -> {
-                    attempts = 0;
-                    updateGameImage(true);
-                    wordDisplayLabel.setText(""); // Limpiar la palabra mostrada
-                    gameActive = false;
-                    
-                    JOptionPane.showMessageDialog(mainFrame, 
-                        "El juego se reinició. Ahora eres el jugador " + 
-                        (playerRole == 1 ? "que elige la palabra." : "que adivina."));
-                    
-                    // Reiniciar el flujo del juego con el nuevo rol
-                    handleGameFlow();
-                });
-            } catch (NumberFormatException e) {
-                System.err.println("Error parsing role: " + e.getMessage());
-            }
         }
         else if (msg.startsWith("restart.fail")) {
             SwingUtilities.invokeLater(() -> 
