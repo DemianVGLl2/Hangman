@@ -29,47 +29,54 @@ Este proyecto consiste en implementar un juego de Ahorcado (Hangman) en modo mul
 
 - **Comunicación:**  
   El cliente se ejecuta usando una IDE, o usando la terminal en windows, en la carpeta hangmanClientJava/src/ en donde se instalo el proyecto, ejecutando lo siguiente:
-  java 
-donde el puerto se fija en 5000. Al conectarse, la interfaz solicitará a uno de los clientes que ingrese la palabra secreta (por ejemplo, "Aguacate"). Esa palabra se transformará en un mensaje (por ejemplo, en formato JSON o una cadena con delimitador) y se enviará para que el otro cliente la reciba de forma oculta (mostrándose como guiones bajos, por ejemplo, "________").  
+  java Main
+donde el puerto se fija en 5000 y el host en 127.0.0.1. Al conectarse, la interfaz solicitará a uno de los clientes que ingrese la palabra secreta (por ejemplo, "Aguacate"). Esa palabra se transformará en un mensaje (Siguiendo las reglas estipuladas en el codigo, ejemplo: el servidor recibirá 3.aguacate) y se enviará para que el otro cliente la reciba de forma oculta (mostrándose como guiones bajos, por ejemplo, "_ _ _ _ _ _ _ _").  
 A partir de ahí, ambos clientes verán en tiempo real el progreso del juego.  
 Ejemplo de flujo:
-- Cliente 1 – Palabra a dar: "Aguacate"  
-- Cliente 2 – Palabra a adivinar: "________"  
+- Cliente 1 – Progreso del juego: _ _ _ _ _ _ _ _ 
+- Cliente 2 – Palabra a adivinar: "_ _ _ _ _ _ _ _"  
 - Cliente 2 ingresa: "a"  
 - Ambos ven: "A__a_a__"  
 y así sucesivamente.
 
 - **Evidencia de la Comunicación:**  
-La comunicación se realiza mediante sockets TCP (el servidor utiliza el código proporcionado por el profesor y soporta interacción continua) y el cliente implementa la parte interactiva. Los mensajes se estructuran en formato JSON (o en un formato de texto simple con delimitadores) para que ambos extremos interpreten correctamente los datos.
+La comunicación se realiza mediante sockets TCP (el servidor utiliza el código proporcionado por el profesor y soporta interacción continua) y el cliente implementa la parte interactiva. Los mensajes se estructuran de manera estipulada por el codigo en el server para que ambos extremos interpreten correctamente los datos.
 
 ## Estructura del Proyecto
 
 El repositorio se organiza de la siguiente manera:
 
-- **/cliente:**  
-Contiene el código fuente del cliente en JavaScript, que incluye la interfaz gráfica y la lógica de comunicación (por ejemplo, usando WebSockets o TCP mediante Node.js).
+- **/hangmanClientJava:**  
+Contiene el código fuente del cliente en Java, que incluye la interfaz gráfica y la lógica de comunicación.
 
-- **/servidor:**  
+- **/server:**  
 Contiene el código fuente del servidor en C (basado en el código proporcionado por el profesor, adaptado para el juego).
 
-- **/docs:**  
-Contiene la documentación adicional, incluyendo este README, el PDF de entrega y las capturas de pantalla.
+- **/clientHangman:**  
+Contiene los archivos html, css y javaScript de la versión anterior a Java.
+
+- **/.idea**, **/out:**
+Archivos temporales para la IDE de IntelliJIdea
 
 ## Cómo Ejecutar el Proyecto
 
 1. **Servidor:**  
- - En Linux (por ejemplo, en un contenedor Docker o en WSL), compila y ejecuta el servidor usando el código proporcionado:
-   ```bash
+    ```bash
    ./tcpserver 5000
    ```
    (El servidor escucha en el puerto 5000).
 
 2. **Cliente:**  
- - En Windows, implementa el cliente en JavaScript (por ejemplo, como una aplicación web o mediante Node.js).
- - Si se trata de una aplicación web, abre la página en tu navegador y se solicitarán los parámetros (o se configurarán internamente) para conectarse al servidor, usando la IP del servidor y el puerto 5000.
- - Alternativamente, si usas Node.js, ejecuta:
+ - El cliente se ejecuta usando una IDE, o usando la terminal en windows, en la carpeta hangmanClientJava/src/ en donde se instalo el proyecto, ejecutando lo siguiente:
+  java Main.java
+ - Se verá de la siguiente manera:
    ```bash
-   node cliente.js <ip_del_servidor> 5000
+   java Main
+   ```
+   Si no se pudiera empezar, se puede usar java compiler para recompilar el codigo y despues volverlo a intentar.
+   ```bash
+   javac Main.java
+   java Main
    ```
  - La interfaz gráfica permitirá:
    - Ingresar la palabra secreta (Cliente 1).
