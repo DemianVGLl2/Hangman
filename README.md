@@ -62,9 +62,8 @@ Archivos temporales para la IDE de IntelliJIdea
 
 1. **Servidor:**  
     ```bash
-   ./tcpserver 5000
+   ./tcpserver
    ```
-   (El servidor escucha en el puerto 5000).
 
 2. **Cliente:**  
  - El cliente se ejecuta usando una IDE, o usando la terminal en windows, en la carpeta hangmanClientJava/src/ en donde se instalo el proyecto, ejecutando lo siguiente:
