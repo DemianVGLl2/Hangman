@@ -2,6 +2,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.*;
 import java.net.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Main {
     private static int attempts = 0;
@@ -30,6 +31,9 @@ public class Main {
         SwingUtilities.invokeLater(() -> {
             try {
                 setupNetworkConnection();
+                if(handleLogin()){
+                    handleCreateUser();
+                }
                 handleAuthentication();
                 handleGameFlow();
             } catch (Exception e) {
@@ -78,6 +82,55 @@ public class Main {
         
         String credentials = "1." + userField.getText() + "." + new String(passField.getPassword());
         sendMessage(credentials);
+    }
+
+    private static void handleCreateUser() {
+        JPanel authPanel = new JPanel();
+        JTextField userField = new JTextField(10);
+        JPasswordField passField = new JPasswordField(10);
+        
+        authPanel.add(new JLabel("Nuevo usuario:"));
+        authPanel.add(userField);
+        authPanel.add(new JLabel("Nueva contraseña:"));
+        authPanel.add(passField);
+
+        int result = JOptionPane.showConfirmDialog(null, authPanel,
+                "Autenticación", JOptionPane.OK_CANCEL_OPTION);
+        
+        if (result != JOptionPane.OK_OPTION) System.exit(0);
+        
+        String credentials = "2." + userField.getText() + "." + new String(passField.getPassword());
+        sendMessage(credentials);
+    }
+
+    private static boolean handleLogin() {
+        JDialog dialog = new JDialog((Frame) null, "Iniciar sesión", true);
+        JPanel authPanel = new JPanel();
+        JButton btnLogIn = new JButton("Log In");
+        JButton btnCreateUser = new JButton("Crear Usuario");
+
+        AtomicBoolean createUser = new AtomicBoolean(false);
+
+        btnCreateUser.addActionListener(e -> {
+            createUser.set(true);
+            dialog.dispose(); // Cierra el diálogo inmediatamente
+        });
+
+        btnLogIn.addActionListener(e -> {
+            createUser.set(false);
+            dialog.dispose(); // Cierra el diálogo
+        });
+
+        authPanel.add(btnLogIn);
+        authPanel.add(btnCreateUser);
+
+        dialog.setContentPane(authPanel);
+        dialog.pack();
+        dialog.setLocationRelativeTo(null);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        dialog.setVisible(true); // Muestra el diálogo y espera hasta que se cierre
+
+        return createUser.get();
     }
 
     private static void handleGameFlow() {
