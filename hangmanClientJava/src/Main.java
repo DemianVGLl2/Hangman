@@ -16,7 +16,7 @@ public class Main {
     
     // Configuración de imágenes con escalado
     static {
-        String[] imagePaths = {"/image1.jpg", "/image2.jpg", "/image3.jpg", "/image4.jpg", "/image5.jpg", "/image6.jpg"};
+        String[] imagePaths = {"/image0.jpg", "/image1.jpg", "/image2.jpg", "/image3.jpg", "/image4.jpg", "/image5.jpg", "/image6.jpg"};
         images = new ImageIcon[imagePaths.length];
         
         for (int i = 0; i < imagePaths.length; i++) {
@@ -134,8 +134,14 @@ public class Main {
         guessPanel.add(letterPanel);
         guessPanel.add(wordPanel);
 
-        JOptionPane.showOptionDialog(null, guessPanel, "Adivina la Palabra",
+        int choice = JOptionPane.showOptionDialog(null, guessPanel, "Adivina la Palabra",
                 JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+
+        if (choice == 0) {  // “Forfeit”
+            sendMessage("close");
+            JOptionPane.showMessageDialog(null, "Has abandonado el juego.");
+            System.exit(0);
+        }
     }
 
     private static void showGameMonitor() {
@@ -144,9 +150,15 @@ public class Main {
         monitorPanel.add(new JLabel("Estado del Juego:"));
         monitorPanel.add(wordDisplayLabel);
         
-        JOptionPane.showOptionDialog(null, monitorPanel, "Monitor del Juego",
+        int choice = JOptionPane.showOptionDialog(null, monitorPanel, "Monitor del Juego",
                 JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE, 
                 null, options, options[0]);
+
+        if (choice == 0) {  // “Forfeit”
+            sendMessage("close");
+            JOptionPane.showMessageDialog(null, "Has abandonado el juego.");
+            System.exit(0);
+        }
     }
 
     private static void listenToServer() {
@@ -167,19 +179,47 @@ public class Main {
     private static void processServerMessage(String msg) {
         System.out.println("Server: " + msg);
         
-        if (msg.startsWith("login.ok.role")) {
-            playerRole = Integer.parseInt(msg.split("\\.")[3]);
-        } 
+        // Manejo de errores
+        if (msg.startsWith("error.format_incorrect")) {
+            JOptionPane.showMessageDialog(null, "Error: Formato incorrecto. Por favor, revisa la entrada.");
+            // Vuelve a pedir autenticación o a la entrada del comando, según corresponda.
+            handleAuthentication();
+        }
+        else if (msg.startsWith("login.fail.invalid_credentials")) {
+            JOptionPane.showMessageDialog(null, "Error: Credenciales inválidas. Inténtalo de nuevo.");
+            handleAuthentication();
+        }
+        else if (msg.startsWith("register.fail.user_exists")) {
+            JOptionPane.showMessageDialog(null, "Error: El usuario ya existe. Por favor, intenta iniciar sesión.");
+            handleAuthentication();
+        }
+        else if (msg.startsWith("login.fail.server_full")) {
+            JOptionPane.showMessageDialog(null, "Error: El servidor está lleno. Inténtalo más tarde.");
+            System.exit(0);
+        }
+        else if (msg.startsWith("login.ok.role")) {
+            // Ejemplo: login.ok.role.1
+            try {
+                String[] parts = msg.split("\\.");
+                playerRole = Integer.parseInt(parts[3]);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(null, "Error procesando el mensaje de login.");
+            }
+        }
         else if (msg.startsWith("progress") || msg.startsWith("guess.") || msg.startsWith("word.set")) {
             handleGameProgress(msg);
         }
         else if (msg.startsWith("game.over")) {
+            // Ejemplo: game.over.win o game.over.lose
             attempts = 0;
             updateGameImage(true);
+            boolean won = msg.contains("win");
+            showGameResult(won);
         }
-        else if (msg.startsWith("error")) {
-            JOptionPane.showMessageDialog(null, msg);
-        }
+        /*else {
+            // Para cualquier otro mensaje inesperado, lo mostramos
+            JOptionPane.showMessageDialog(null, "Mensaje inesperado del servidor: " + msg);
+        }*/
     }
 
     private static void handleGameProgress(String msg) {
@@ -199,7 +239,6 @@ public class Main {
                 } else {
                     wordDisplayLabel.setText(parts[3]); // Actualizar progreso
                     if (parts[2].equals("0")) { // Intento incorrecto
-                        attempts++;
                         updateGameImage(false);
                     }
                 }
@@ -231,10 +270,18 @@ public class Main {
 
     private static void updateGameImage(boolean reset) {
         SwingUtilities.invokeLater(() -> {
-            if (reset) attempts = 0;
-            else attempts++;
+            if (reset) {
+                attempts = 0;
+            } else {
+                attempts++;
+            }
+            System.out.println("Actual attempts: " + attempts);
             
-            gameImageLabel.setIcon(images[attempts % images.length]);
+            if (attempts >= images.length - 1) {
+                gameImageLabel.setIcon(images[images.length - 1]);
+            } else {
+                gameImageLabel.setIcon(images[attempts]);
+            }
         });
     }
 }
