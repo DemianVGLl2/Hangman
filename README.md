@@ -28,7 +28,7 @@ Este proyecto consiste en implementar un juego de Ahorcado (Hangman) en modo mul
 ## Requisitos Adicionales
 
 - **Comunicación:**  
-  El cliente se ejecuta usando una IDE, o usando la terminal en windows, en la carpeta en la que se instalo el proyecto, ejecutando lo siguiente:
+  El cliente se ejecuta usando una IDE, o usando la terminal en windows, en la carpeta hangmanClientJava/src/ en donde se instalo el proyecto, ejecutando lo siguiente:
   java 
 donde el puerto se fija en 5000. Al conectarse, la interfaz solicitará a uno de los clientes que ingrese la palabra secreta (por ejemplo, "Aguacate"). Esa palabra se transformará en un mensaje (por ejemplo, en formato JSON o una cadena con delimitador) y se enviará para que el otro cliente la reciba de forma oculta (mostrándose como guiones bajos, por ejemplo, "________").  
 A partir de ahí, ambos clientes verán en tiempo real el progreso del juego.  
