@@ -2,37 +2,47 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.*;
 import java.net.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Main {
-    private static int imageToShow = 0;
+    private static int attempts = 0;
     private static JLabel gameImageLabel;
-    private static JLabel wordLabel = new JLabel("_ _ _ _ _");
-    private static JLabel statusLabel = new JLabel("Waiting for opponent...");
-    private static JLabel playerWinLabel = new JLabel(new ImageIcon(Main.class.getResource("/pearto.jpg")));
-    private static JLabel playerLoseLabel = new JLabel(new ImageIcon(Main.class.getResource("/butterDog.jpg")));
+    private static JLabel wordDisplayLabel = new JLabel("", SwingConstants.CENTER);
     private static ImageIcon[] images;
-    private static int playerRole = -1;
     private static Socket socket;
-    private static BufferedReader reader;
-    private static PrintWriter writer;
-    private static AtomicBoolean running = new AtomicBoolean(true);
-    private static JFrame gameFrame;
-    private static JTextField guessField;
+    private static OutputStream out;
+    private static InputStream in;
+    private static int playerRole = -1;
+    private static final Object[] options = {"Forfeit"};
     
+    // Configuración de imágenes con escalado
+    static {
+        String[] imagePaths = {"/pearto.jpg", "/butterDog.jpg", "/jinx.jpg", "/pearto.jpg"};
+        images = new ImageIcon[imagePaths.length];
+        
+        for (int i = 0; i < imagePaths.length; i++) {
+            ImageIcon original = new ImageIcon(Main.class.getResource(imagePaths[i]));
+            Image scaled = original.getImage().getScaledInstance(300, 300, Image.SCALE_SMOOTH);
+            images[i] = new ImageIcon(scaled);
+        }
+    }
+
     public static void main(String[] args) {
-        images = new ImageIcon[]{
-                new ImageIcon(Main.class.getResource("/pearto.jpg")),
-                new ImageIcon(Main.class.getResource("/butterDog.jpg")),
-                new ImageIcon(Main.class.getResource("/jinx.jpg")),
-                new ImageIcon(Main.class.getResource("/pearto.jpg")),
-        };
+        SwingUtilities.invokeLater(() -> {
+            try {
+                setupNetworkConnection();
+                handleAuthentication();
+                handleGameFlow();
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
+            }
+        });
+    }
 
-        // Connection panel
-        JTextField hostField = new JTextField("localhost", 10);
-        JTextField portField = new JTextField("5000", 5);
-
+    private static void setupNetworkConnection() throws IOException {
         JPanel connectionPanel = new JPanel();
+        JTextField hostField = new JTextField("127.0.0.1", 10);
+        JTextField portField = new JTextField("5000", 5);
+        
         connectionPanel.add(new JLabel("Host:"));
         connectionPanel.add(hostField);
         connectionPanel.add(Box.createHorizontalStrut(15));
@@ -40,380 +50,191 @@ public class Main {
         connectionPanel.add(portField);
 
         int result = JOptionPane.showConfirmDialog(null, connectionPanel,
-                "Please Enter Host and Port Values", JOptionPane.OK_CANCEL_OPTION);
+                "Conexión al Servidor", JOptionPane.OK_CANCEL_OPTION);
         
-        if (result != JOptionPane.OK_OPTION) {
-            return; // User canceled
-        }
+        if (result != JOptionPane.OK_OPTION) System.exit(0);
+        
+        socket = new Socket(hostField.getText(), Integer.parseInt(portField.getText()));
+        out = socket.getOutputStream();
+        in = socket.getInputStream();
+        
+        new Thread(Main::listenToServer).start();
+    }
 
-        String host = hostField.getText();
-        int port = Integer.parseInt(portField.getText());
+    private static void handleAuthentication() {
+        JPanel authPanel = new JPanel();
+        JTextField userField = new JTextField(10);
+        JPasswordField passField = new JPasswordField(10);
         
-        try {
-            // Connect to server
-            socket = new Socket(host, port);
-            writer = new PrintWriter(socket.getOutputStream(), true); // true = autoflush
-            reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            
-            // Start the listener thread first so we don't miss any messages
-            Thread listenerThread = new Thread(() -> listenForServerMessages());
-            listenerThread.setDaemon(true);
-            listenerThread.start();
-            
-            // Show login dialog
-            showLoginDialog();
-            
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(null, "Error connecting to server: " + e.getMessage(), 
-                    "Connection Error", JOptionPane.ERROR_MESSAGE);
-            e.printStackTrace();
+        authPanel.add(new JLabel("Usuario:"));
+        authPanel.add(userField);
+        authPanel.add(new JLabel("Contraseña:"));
+        authPanel.add(passField);
+
+        int result = JOptionPane.showConfirmDialog(null, authPanel,
+                "Autenticación", JOptionPane.OK_CANCEL_OPTION);
+        
+        if (result != JOptionPane.OK_OPTION) System.exit(0);
+        
+        String credentials = "1." + userField.getText() + "." + new String(passField.getPassword());
+        sendMessage(credentials);
+    }
+
+    private static void handleGameFlow() {
+        // Esperar asignación de rol del servidor
+        while (playerRole == -1) Thread.onSpinWait();
+        
+        if (playerRole == 1) {
+            String word = JOptionPane.showInputDialog("Escribe la palabra secreta:");
+            sendMessage("3." + word);
+            showGameMonitor();
+        } else {
+            showGuessInterface();
         }
     }
-    
-    private static void showLoginDialog() {
-        JTextField usernameField = new JTextField(10);
-        JPasswordField passwordField = new JPasswordField(10);
+
+    private static void showGuessInterface() {
+        JPanel guessPanel = new JPanel();
+        guessPanel.setLayout(new BoxLayout(guessPanel, BoxLayout.Y_AXIS));
         
-        JPanel userAuthPanel = new JPanel(new GridLayout(0, 2));
-        userAuthPanel.add(new JLabel("Username:"));
-        userAuthPanel.add(usernameField);
-        userAuthPanel.add(new JLabel("Password:"));
-        userAuthPanel.add(passwordField);
-        
-        JPanel loginPanel = new JPanel(new BorderLayout());
-        loginPanel.add(userAuthPanel, BorderLayout.CENTER);
-        
-        JButton loginButton = new JButton("Login");
-        JButton registerButton = new JButton("Register");
-        
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.add(loginButton);
-        buttonPanel.add(registerButton);
-        loginPanel.add(buttonPanel, BorderLayout.SOUTH);
-        
-        JDialog loginDialog = new JDialog((Frame)null, "Login", true);
-        loginDialog.setContentPane(loginPanel);
-        
-        loginButton.addActionListener(e -> {
-            String username = usernameField.getText();
-            String password = passwordField.getText();
-            if (username.isEmpty() || password.isEmpty()) {
-                JOptionPane.showMessageDialog(loginDialog, "Please enter both username and password");
-                return;
-            }
-            
-            try {
-                sendMessage("1." + username + "." + password);
-                // Response will be handled by the listener thread
-                loginDialog.dispose();
-            } catch (IOException ex) {
-                JOptionPane.showMessageDialog(loginDialog, "Error sending login request: " + ex.getMessage());
-            }
-        });
-        
-        registerButton.addActionListener(e -> {
-            String username = usernameField.getText();
-            String password = passwordField.getText();
-            if (username.isEmpty() || password.isEmpty()) {
-                JOptionPane.showMessageDialog(loginDialog, "Please enter both username and password");
-                return;
-            }
-            
-            try {
-                sendMessage("2." + username + "." + password);
-                // Response will be handled by the listener thread
-            } catch (IOException ex) {
-                JOptionPane.showMessageDialog(loginDialog, "Error sending register request: " + ex.getMessage());
-            }
-        });
-        
-        loginDialog.pack();
-        loginDialog.setLocationRelativeTo(null);
-        loginDialog.setVisible(true);
-    }
-    
-    private static void listenForServerMessages() {
-        byte[] buffer = new byte[1024];
-        int bytesRead = in.read(buffer);
-        
-        try {
-            while (running.get()) {
-                // Use a larger buffer for receiving multiple messages
-                int bytesRead = in.read(buffer);
-                if (bytesRead == -1) {
-                    // Connection closed by server
-                    SwingUtilities.invokeLater(() -> {
-                        JOptionPane.showMessageDialog(null, "Server closed the connection", 
-                                "Connection Closed", JOptionPane.WARNING_MESSAGE);
-                        closeConnection();
-                    });
-                    break;
-                }
-                
-                final String response = new String(buffer, 0, bytesRead);
-                System.out.println("Server: " + response);
-                
-                // Process server response on the EDT
-                SwingUtilities.invokeLater(() -> processServerResponse(response));
-            }
-        } catch (IOException e) {
-            if (running.get()) {
-                e.printStackTrace();
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(null, "Error reading from server: " + e.getMessage(), 
-                            "Connection Error", JOptionPane.ERROR_MESSAGE);
-                    closeConnection();
-                });
-            }
-        }
-    }
-    
-    private static void processServerResponse(String response) {
-        String[] parts = response.split("\\.");
-        
-        if (response.startsWith("login.ok.role")) {
-            try {
-                // Extraer correctamente el número de rol
-                // El formato es "login.ok.role.X" donde X es 1 o 2
-                playerRole = Integer.parseInt(parts[3]);
-                System.out.println("You are player " + playerRole);
-                createGameUI();
-        
-                if (playerRole == 1) {
-                    statusLabel.setText("Waiting for player 2 to join...");
-                } else {
-                    statusLabel.setText("Waiting for player 1 to set a word...");
-                }
-            } catch (Exception e) {
-                System.err.println("Error parsing role from: " + response);
-                e.printStackTrace();
-                playerRole = -1; // Set to invalid role
-                JOptionPane.showMessageDialog(null, "Error understanding server response",
-                        "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        } else if (response.startsWith("login.fail")) {
-            JOptionPane.showMessageDialog(null, "Login failed: " + response.substring(11), 
-                    "Login Error", JOptionPane.ERROR_MESSAGE);
-            showLoginDialog();
-        } else if (response.startsWith("register.ok")) {
-            JOptionPane.showMessageDialog(null, "Registration successful. You can now log in.");
-            showLoginDialog();
-        } else if (response.startsWith("register.fail")) {
-            JOptionPane.showMessageDialog(null, "Registration failed: " + response.substring(14), 
-                    "Registration Error", JOptionPane.ERROR_MESSAGE);
-        } else if (response.startsWith("game.start")) {
-            if (playerRole == 1) {
-                String word = JOptionPane.showInputDialog(gameFrame, "Enter a word for player 2 to guess:", 
-                        "Set Word", JOptionPane.QUESTION_MESSAGE);
-                if (word != null && !word.isEmpty()) {
-                    try {
-                        sendMessage("3." + word);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        } else if (response.startsWith("word.set")) {
-            String maskedWord = parts[2];
-            wordLabel.setText(formatWord(maskedWord));
-            statusLabel.setText("Guess a letter");
-            // Reset the hangman image
-            imageToShow = 0;
-            changeImage(false);
-        } else if (response.startsWith("guess")) {
-            if (parts.length >= 4) {
-                String result = parts[2]; // 0 for incorrect, 1 for correct
-                String maskedWord = parts[3];
-                
-                wordLabel.setText(formatWord(maskedWord));
-                
-                if (result.equals("0")) {
-                    changeImage(true); // Incorrect guess, update hangman
-                    statusLabel.setText("Incorrect guess: " + parts[1]);
-                } else {
-                    statusLabel.setText("Correct guess: " + parts[1]);
-                }
-            } else if (response.startsWith("guess.win")) {
-                wordLabel.setText(formatWord(parts[2]));
-                statusLabel.setText("You won! The word was: " + parts[2]);
-                JOptionPane.showMessageDialog(gameFrame, playerWinLabel, "You won!", JOptionPane.INFORMATION_MESSAGE);
-            } else if (response.startsWith("guess.lose")) {
-                wordLabel.setText(formatWord(parts[2]));
-                statusLabel.setText("You lost! The word was: " + parts[2]);
-                JOptionPane.showMessageDialog(gameFrame, playerLoseLabel, "You lost!", JOptionPane.INFORMATION_MESSAGE);
-            }
-        } else if (response.startsWith("progress")) {
-            // Update for player 1 when player 2 makes a guess
-            String maskedWord = parts[1];
-            char letter = parts[2].charAt(0);
-            
-            wordLabel.setText(formatWord(maskedWord));
-            statusLabel.setText("Player 2 guessed: " + letter);
-        } else if (response.startsWith("game.over")) {
-            if (response.contains("win")) {
-                statusLabel.setText("Player 2 guessed the word!");
-                JOptionPane.showMessageDialog(gameFrame, "Player 2 guessed your word!", 
-                        "Game Over", JOptionPane.INFORMATION_MESSAGE);
-            } else {
-                statusLabel.setText("Player 2 ran out of attempts!");
-                JOptionPane.showMessageDialog(gameFrame, "Player 2 failed to guess your word!", 
-                        "Game Over", JOptionPane.INFORMATION_MESSAGE);
-            }
-            
-            // Ask if player 1 wants to play again
-            if (playerRole == 1) {
-                int restart = JOptionPane.showConfirmDialog(gameFrame, "Start a new game?", 
-                        "Play Again", JOptionPane.YES_NO_OPTION);
-                if (restart == JOptionPane.YES_OPTION) {
-                    try {
-                        sendMessage("5");
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        } else if (response.startsWith("game.restart")) {
-            statusLabel.setText("Game restarted");
-            wordLabel.setText("_ _ _ _ _");
-            
-            if (playerRole == 1) {
-                String word = JOptionPane.showInputDialog(gameFrame, "Enter a new word for player 2 to guess:", 
-                        "Set Word", JOptionPane.QUESTION_MESSAGE);
-                if (word != null && !word.isEmpty()) {
-                    try {
-                        sendMessage("3." + word);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            } else {
-                statusLabel.setText("Waiting for player 1 to set a word...");
-            }
-        } else if (response.startsWith("opponent.disconnected")) {
-            JOptionPane.showMessageDialog(gameFrame, "Your opponent has disconnected.", 
-                    "Opponent Left", JOptionPane.WARNING_MESSAGE);
-            statusLabel.setText("Waiting for opponent to reconnect...");
-        }
-    }
-    
-    private static void createGameUI() {
-        gameFrame = new JFrame("Hangman Game");
-        gameFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        
-        // Main panel
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
-        // Game info panel (top)
-        JPanel infoPanel = new JPanel(new BorderLayout());
-        wordLabel.setFont(new Font("Monospaced", Font.BOLD, 24));
-        wordLabel.setHorizontalAlignment(JLabel.CENTER);
-        statusLabel.setHorizontalAlignment(JLabel.CENTER);
-        infoPanel.add(wordLabel, BorderLayout.NORTH);
-        infoPanel.add(statusLabel, BorderLayout.SOUTH);
-        
-        // Hangman image (center)
         gameImageLabel = new JLabel(images[0]);
-        gameImageLabel.setHorizontalAlignment(JLabel.CENTER);
-        JPanel imagePanel = new JPanel(new BorderLayout());
-        imagePanel.add(gameImageLabel, BorderLayout.CENTER);
+        gameImageLabel.setPreferredSize(new Dimension(300, 300));
         
-        // Controls panel (bottom)
-        JPanel controlPanel = new JPanel();
-        guessField = new JTextField(5);
-        JButton guessButton = new JButton("Guess");
-        JButton forfeitButton = new JButton("Forfeit");
+        // Campo para la letra
+        JTextField letterField = new JTextField(1);
+        JButton guessButton = new JButton("Adivinar");
+
+        // Campo para palabra completa
+        JTextField fullWordField = new JTextField(10);
+        JButton fullWordButton = new JButton("Adivinar palabra");
         
         guessButton.addActionListener(e -> {
-            String guess = guessField.getText().trim();
-            if (!guess.isEmpty() && playerRole == 2) {
-                try {
-                    // Only send the first character as the guess
-                    sendMessage("4." + guess.charAt(0));
-                    guessField.setText("");
-                } catch (IOException ex) {
-                    ex.printStackTrace();
-                }
-            }
+            sendMessage("4." + letterField.getText().trim());
+            letterField.setText("");
         });
-        
-        forfeitButton.addActionListener(e -> {
-            try {
-                sendMessage("close");
-                closeConnection();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+
+        fullWordButton.addActionListener(e -> {
+            sendMessage("4." + fullWordField.getText().trim()); // Comando hipotético para palabra
+            fullWordField.setText("");
         });
+
+        guessPanel.add(gameImageLabel);
+        guessPanel.add(wordDisplayLabel);
+
+        JPanel letterPanel = new JPanel();
+        letterPanel.add(new JLabel("Letra:"));
+        letterPanel.add(letterField);
+        letterPanel.add(guessButton);
         
-        controlPanel.add(new JLabel("Guess: "));
-        controlPanel.add(guessField);
-        controlPanel.add(guessButton);
-        controlPanel.add(forfeitButton);
+        JPanel wordPanel = new JPanel();
+        wordPanel.add(new JLabel("Palabra completa:"));
+        wordPanel.add(fullWordField);
+        wordPanel.add(fullWordButton);
         
-        // Add panels to main panel
-        mainPanel.add(infoPanel, BorderLayout.NORTH);
-        mainPanel.add(imagePanel, BorderLayout.CENTER);
-        mainPanel.add(controlPanel, BorderLayout.SOUTH);
-        
-        // Set up frame
-        gameFrame.setContentPane(mainPanel);
-        gameFrame.setSize(400, 500);
-        gameFrame.setLocationRelativeTo(null);
-        gameFrame.setVisible(true);
-        
-        // Add window listener to handle closing
-        gameFrame.addWindowListener(new java.awt.event.WindowAdapter() {
-            @Override
-            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
-                try {
-                    sendMessage("close");
-                } catch (IOException e) {
-                    // Ignore, we're closing anyway
-                }
-                closeConnection();
-            }
-        });
+        guessPanel.add(letterPanel);
+        guessPanel.add(wordPanel);
+
+        JOptionPane.showOptionDialog(null, guessPanel, "Adivina la Palabra",
+                JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
     }
-    
-    private static String formatWord(String word) {
-        StringBuilder formatted = new StringBuilder();
-        for (int i = 0; i < word.length(); i++) {
-            formatted.append(word.charAt(i));
-            if (i < word.length() - 1) {
-                formatted.append(" ");
-            }
-        }
-        return formatted.toString();
-    }
-    
-    private static void sendMessage(String message) throws IOException {
-        System.out.println("Sending: " + message);
-        writer.println(message);
-    }
-    
-    private static void changeImage(boolean incorrectGuess) {
-        if (incorrectGuess) {
-            imageToShow++;
-        }
+
+    private static void showGameMonitor() {
+        // Interfaz para el jugador que estableció la palabra
+        JPanel monitorPanel = new JPanel();
+        monitorPanel.add(new JLabel("Estado del Juego:"));
+        monitorPanel.add(wordDisplayLabel);
         
-        int imageIndex = imageToShow % images.length;
-        gameImageLabel.setIcon(images[imageIndex]);
-        
-        gameImageLabel.revalidate();
-        gameImageLabel.repaint();
+        JOptionPane.showOptionDialog(null, monitorPanel, "Monitor del Juego",
+                JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE, 
+                null, options, options[0]);
     }
-    
-    private static void closeConnection() {
-        running.set(false);
+
+    private static void listenToServer() {
+        byte[] buffer = new byte[1024];
         try {
-            if (writer != null) writer.close();
-            if (reader != null) reader.close();
-            if (socket != null && !socket.isClosed()) {
-                socket.close();
+            while (true) {
+                int bytesRead = in.read(buffer);
+                if(bytesRead == -1) break;
+                
+                String response = new String(buffer, 0, bytesRead);
+                processServerMessage(response);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Conexión perdida con el servidor");
         }
+    }
+
+    private static void processServerMessage(String msg) {
+        System.out.println("Server: " + msg);
+        
+        if (msg.startsWith("login.ok.role")) {
+            playerRole = Integer.parseInt(msg.split("\\.")[3]);
+        } 
+        else if (msg.startsWith("progress") || msg.startsWith("guess.") || msg.startsWith("word.set")) {
+            handleGameProgress(msg);
+        }
+        else if (msg.startsWith("game.over")) {
+            attempts = 0;
+            updateGameImage(true);
+        }
+        else if (msg.startsWith("error")) {
+            JOptionPane.showMessageDialog(null, msg);
+        }
+    }
+
+    private static void handleGameProgress(String msg) {
+        SwingUtilities.invokeLater(() -> {
+            String[] parts = msg.split("\\.");
+            
+            if (msg.startsWith("word.set")) { // Mensaje inicial para el jugador 2
+                wordDisplayLabel.setText(parts[2]);
+            }
+            else if (msg.startsWith("progress")) { // Para el jugador 1
+                wordDisplayLabel.setText(parts[1]);
+            }
+            else if (msg.startsWith("guess.")) { // Para el jugador 2
+                if (parts[1].equals("win") || parts[1].equals("lose")) {
+                    wordDisplayLabel.setText(parts[2]); // Mostrar palabra completa
+                    showGameResult(parts[1].equals("win"));
+                } else {
+                    wordDisplayLabel.setText(parts[3]); // Actualizar progreso
+                    if (parts[2].equals("0")) { // Intento incorrecto
+                        attempts++;
+                        updateGameImage(false);
+                    }
+                }
+            }
+        });
+    }
+
+    private static void showGameResult(boolean won) {
+        SwingUtilities.invokeLater(() -> {
+            JPanel resultPanel = new JPanel();
+            resultPanel.add(new JLabel(won ? "¡Ganaste!" : "¡Perdiste!"));
+            
+            JButton restartButton = new JButton("Reiniciar");
+            restartButton.addActionListener(e -> sendMessage("5"));
+            
+            resultPanel.add(restartButton);
+            JOptionPane.showMessageDialog(null, resultPanel);
+        });
+    }
+
+    private static synchronized void sendMessage(String msg) {
+        try {
+            out.write(msg.getBytes());
+            out.flush();
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(null, "Error enviando mensaje");
+        }
+    }
+
+    private static void updateGameImage(boolean reset) {
+        SwingUtilities.invokeLater(() -> {
+            if (reset) attempts = 0;
+            else attempts++;
+            
+            gameImageLabel.setIcon(images[attempts % images.length]);
+        });
     }
 }
