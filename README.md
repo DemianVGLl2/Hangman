@@ -2,16 +2,16 @@
 
 ## Descripción del Proyecto
 
-Este proyecto consiste en implementar un juego de Ahorcado (Hangman) en modo multijugador. El sistema está diseñado para que dos jugadores se conecten a través de una arquitectura cliente-servidor. En cada ronda, un jugador ingresa la palabra secreta y el otro intenta adivinarla; los roles se intercambian en cada ronda, permitiendo una interacción dinámica durante la partida.
+Este proyecto consiste en implementar un juego de Ahorcado (Hangman) en modo multijugador. El sistema está diseñado para que dos jugadores se conecten a través de una arquitectura cliente-servidor. En cada ronda, un jugador ingresa la palabra secreta y el otro intenta adivinarla; El primer jugador en unirse al server será el jugador otorgando palabras, mientras que el segundo será el que intente adivinarlas.
 
 ## Objetivos
 
-- Permitir la conexión simultánea de al menos dos jugadores mediante sockets.
-- Gestionar la interacción por rondas:
+- Permitir la conexión simultánea de dos jugadores mediante sockets.
+- Gestionar la interacción:
   - **Cliente 1:** Ingresa la palabra secreta, por ejemplo, "Aguacate".
-  - **Cliente 2:** Recibe la palabra oculta (por ejemplo, "________") y puede intentar adivinar letras o la palabra completa.
+  - **Cliente 2:** Recibe la palabra oculta (por ejemplo, "_ _ _ _ _ _ _ _") y puede intentar adivinar letras o la palabra completa.
   - A medida que se van adivinando letras, se actualiza en tiempo real el progreso de la palabra oculta (por ejemplo, "A__a_a__").
-- Implementar el intercambio de mensajes en formato JSON (o en un formato de texto simple con delimitadores) para que ambos extremos interpreten y actualicen el estado del juego.
+- Implementar el intercambio de mensajes mediante el uso de reglas de escritura personalizadas a la acción, para que ambos extremos interpreten y actualicen el estado del juego. 
 
 ## Lenguajes de Programación y Tecnologías
 
@@ -21,15 +21,15 @@ Este proyecto consiste en implementar un juego de Ahorcado (Hangman) en modo mul
   - Ejecución: En contenedores Docker (o en una máquina Linux utilizando WSL o Docker)
 
 - **Cliente:**  
-  - Lenguaje: JavaScript  
+  - Lenguaje: Java 
   - Sistema Operativo: Windows  
-  - Tecnologías: Aplicación web (por ejemplo, utilizando HTML, CSS y frameworks/librerías como React, Vue.js o simplemente JavaScript puro) para mostrar la interfaz gráfica del juego y gestionar la comunicación.
+  - Tecnologías: Con el uso de librerias net de javax para el envío y recepción de mensajes del servidor y JOptionPane, JFrame y JLabel para la interfaz visual del jugador. 
 
 ## Requisitos Adicionales
 
 - **Comunicación:**  
-  El cliente se ejecuta con:
-  <cliente ejecutable> <ip> <puerto>
+  El cliente se ejecuta usando una IDE, o usando la terminal en windows, en la carpeta en la que se instalo el proyecto, ejecutando lo siguiente:
+  java 
 donde el puerto se fija en 5000. Al conectarse, la interfaz solicitará a uno de los clientes que ingrese la palabra secreta (por ejemplo, "Aguacate"). Esa palabra se transformará en un mensaje (por ejemplo, en formato JSON o una cadena con delimitador) y se enviará para que el otro cliente la reciba de forma oculta (mostrándose como guiones bajos, por ejemplo, "________").  
 A partir de ahí, ambos clientes verán en tiempo real el progreso del juego.  
 Ejemplo de flujo:
